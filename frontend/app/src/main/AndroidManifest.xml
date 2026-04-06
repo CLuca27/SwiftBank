@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:name=".SwiftBankApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SwiftBank"
+        android:usesCleartextTraffic="true">
+        <activity
+            android:name=".activities.login.BlockedUserActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.dashboard.DashboardActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.login.LoginPinActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.register.RegisterPinActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.login.IdentifyActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.register.RegisterDetailsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.register.BackActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.register.RegisterEmailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.register.OtpActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.register.RegisterPhoneActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.welcome.WelcomeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.splash.SplashActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

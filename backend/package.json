@@ -1,0 +1,32 @@
+{
+  "name": "banking-app-backend",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "server.js",
+    "dev": "nodemon -r dotenv/config server.js"
+  },
+  "keywords": [],
+  "author": "Cirimpei Luca",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@infobip-api/sdk": "^0.3.2",
+    "@supabase/supabase-js": "^2.98.0",
+    "@vonage/client-sdk": "^2.3.0",
+    "@vonage/server-sdk": "^3.26.4",
+    "axios": "^1.14.0",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.1",
+    "nodemon": "^3.1.14",
+    "supabase": "^2.76.15",
+    "twilio": "^5.12.2",
+    "xml2js": "^0.6.2"
+  },
+  "type": "module"
+}

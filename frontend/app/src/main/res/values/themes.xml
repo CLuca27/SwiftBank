@@ -1,0 +1,16 @@
+<resources>
+    <!-- Tema principală -->
+    <style name="Theme.SwiftBank" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/green_medium</item>
+        <item name="colorPrimaryVariant">@color/green_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="android:statusBarColor">@color/status_bar</item>
+        <item name="android:navigationBarColor">@color/green_darkest</item>
+    </style>
+
+    <!-- Tema pentru Splash - fullscreen -->
+    <style name="Theme.SwiftBank.Splash" parent="Theme.SwiftBank">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+</resources>

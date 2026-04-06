@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/gradient_splash_background">
+
+    <com.example.swiftbank.views.ParticlesView
+        android:id="@+id/particlesView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ImageView
+        android:id="@+id/btnBack"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="56dp"
+        android:background="@drawable/bg_icon_circle_subtle"
+        android:clickable="true"
+        android:contentDescription="Inapoi"
+        android:focusable="true"
+        android:padding="12dp"
+        android:src="@drawable/ic_arrow_back"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/mainContent"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginTop="28dp"
+        android:orientation="vertical"
+        app:layout_constraintTop_toBottomOf="@id/btnBack"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Container comun: aceeasi latime ca randul de casute -->
+        <LinearLayout
+            android:id="@+id/otpContentBlock"
+            android:layout_width="328dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:lineSpacingExtra="6dp"
+                android:text="@string/introdu_codul_10_de_verificare"
+                android:textColor="@color/white"
+                android:textSize="28sp" />
+
+            <TextView
+                android:id="@+id/tvSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/am_trimis_un_cod_sms_la_40_7xx_xxx_xxx"
+                android:textColor="@color/white_70"
+                android:textSize="15sp" />
+
+            <LinearLayout
+                android:id="@+id/otpContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="36dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/etOtp1"
+                    style="@style/OtpEditText"
+                    android:layout_width="48dp"
+                    android:layout_height="56dp" />
+
+                <EditText
+                    android:id="@+id/etOtp2"
+                    style="@style/OtpEditText"
+                    android:layout_width="48dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="8dp" />
+
+                <EditText
+                    android:id="@+id/etOtp3"
+                    style="@style/OtpEditText"
+                    android:layout_width="48dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="8dp" />
+
+                <EditText
+                    android:id="@+id/etOtp4"
+                    style="@style/OtpEditText"
+                    android:layout_width="48dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="8dp" />
+
+                <EditText
+                    android:id="@+id/etOtp5"
+                    style="@style/OtpEditText"
+                    android:layout_width="48dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="8dp" />
+
+                <EditText
+                    android:id="@+id/etOtp6"
+                    style="@style/OtpEditText"
+                    android:layout_width="48dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="8dp" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvError"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:textAlignment="center"
+                android:textColor="#FF6B6B"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvResend"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="20dp"
+                android:clickable="false"
+                android:focusable="false"
+                android:padding="8dp"
+                android:text="@string/retrimite_cod_0_60"
+                android:textColor="@color/white_70"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnVerify"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginTop="28dp"
+        android:background="@drawable/btn_primary"
+        android:fontFamily="sans-serif-medium"
+        android:text="@string/verifica"
+        android:textAllCaps="false"
+        android:textColor="@color/green_dark"
+        android:textSize="16sp"
+        app:layout_constraintTop_toBottomOf="@id/mainContent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <FrameLayout
+        android:id="@+id/loadingOverlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#99000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ProgressBar
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:indeterminateTint="@color/white" />
+
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

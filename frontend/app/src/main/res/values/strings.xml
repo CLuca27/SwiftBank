@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">SwiftBank</string>
+    <string name="welcome_tagline">Banking simplu și rapid</string>
+    <string name="btn_login">Conectează-te</string>
+    <string name="btn_register">Creează un cont</string>
+    <string name="telefon">Telefon</string>
+    <string name="introdu_numarul_de_telefon">Introdu numărul de telefon</string>
+    <string name="iti_vom_trimite_un_cod_sms_pentru_verificare">Îți vom trimite un cod SMS pentru verificare</string>
+    <string name="inapoi">Înapoi</string>
+    <string name="introdu_num_rul_nde_telefon">Introdu numărul\nde telefon</string>
+    <string name="i_vom_trimite_un_cod_sms_pentru_verificare">Îți vom trimite un cod SMS pentru verificare</string>
+    <string name="continua">Continuă</string>
+    <string name="retrimite_cod_0_60">Retrimite cod (0:60)</string>
+    <string name="verifica">Verifică</string>
+    <string name="napoi">Înapoi</string>
+    <string name="introdu_adresa_ta_nde_email">Introdu adresa ta \nde email</string>
+    <string name="vom_trimite_un_cod_de_verificare">Vom trimite un cod de verificare</string>
+    <string name="exemplu_email_com">exemplu@email.com</string>
+    <string name="continu">Continuă</string>
+    <string name="introdu_codul_10_de_verificare">Introdu codul\nde verificare</string>
+    <string name="am_trimis_un_cod_sms_la_40_7xx_xxx_xxx">Am trimis un cod SMS la +40 7XX XXX XXX</string>
+    <string name="cod_postal">Cod poștal</string>
+    <string name="judet">Județ</string>
+    <string name="oras">Oraș</string>
+    <string name="completeaza_datele_personale">Completează\ndatele personale</string>
+    <string name="introdu_datele_exact_ca_in_actul_de_identitate">Introdu datele exact ca în actul de identitate</string>
+    <string name="prenume">Prenume</string>
+    <string name="nume">Nume</string>
+    <string name="cnp">CNP</string>
+    <string name="adresa_de_domiciliu">Adresa de domiciliu</string>
+    <string name="strada_num_r_bloc_apartament">Stradă, număr, bloc, apartament</string>
+</resources>

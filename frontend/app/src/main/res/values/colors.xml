@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SwiftBank Green Palette -->
+    <color name="green_darkest">#FF041A0D</color>
+    <color name="green_dark">#FF062E18</color>
+    <color name="green_medium">#FF0A5C2E</color>
+    <color name="green_light">#FF0D7C3E</color>
+    <color name="green_accent">#FF10994C</color>
+
+    <!-- Neutrals -->
+    <color name="white">#FFFFFFFF</color>
+    <color name="white_10">#1AFFFFFF</color>
+    <color name="white_20">#33FFFFFF</color>
+    <color name="white_40">#66FFFFFF</color>
+    <color name="white_50">#80FFFFFF</color>
+    <color name="white_60">#99FFFFFF</color>
+    <color name="white_70">#B3FFFFFF</color>
+    <color name="accent_soft_blue">#6EA8FF</color>
+    <color name="black">#FF000000</color>
+    <!-- Status bar -->
+    <color name="status_bar">#FF041A0D</color>
+</resources>
