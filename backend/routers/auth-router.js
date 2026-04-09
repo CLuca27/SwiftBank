@@ -9,9 +9,13 @@ authRouter.post('/send-otp', controllers.auth.sendOTP);
 authRouter.post('/verify-otp', controllers.auth.verifyOTP);
 authRouter.post('/register', controllers.auth.register);
 
-//===================== LOGIN ==================== 
+//===================== LOGIN ====================
 authRouter.post('/identify', controllers.auth.identify)
 authRouter.post('/login', controllers.auth.login)
+
+//===================== FORGOT PIN ====================
+authRouter.post('/forgot-pin', controllers.auth.forgotPin)
+authRouter.post('/reset-pin', controllers.auth.resetPin)
 
 //===================== REFRESH TOKENS ====================
 authRouter.post('/refresh', controllers.refreshToken)

@@ -9,6 +9,7 @@ app.use(express.json());
 
 app.use('/auth', routers.authRouter);
 app.use('/address', routers.addressRouter);
+app.use('/rates', routers.ratesRouter);
 app.use('/api', routers.apiRouter);
 
 export default app;

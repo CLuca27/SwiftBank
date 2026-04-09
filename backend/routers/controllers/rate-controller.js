@@ -1,7 +1,7 @@
 import services from '../../services/index.js';
 
 
-const SUPPORTED_CURRENCIES = ['EUR', 'USD'];
+const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP'];
 
 
 async function getRates(req, res) {
@@ -99,11 +99,52 @@ async function refreshRates(req, res) {
     }
 }
 
+async function convert(req, res) {
+    try {
+        const { from, to } = req.query;
+
+        if (!from || !to) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'MISSING_PARAMS',
+                    message: 'Specifică valutele (from și to)'
+                }
+            });
+        }
+
+        const fromCurrency = from.toUpperCase().trim();
+        const toCurrency = to.toUpperCase().trim();
+
+        const rateInfo = await services.ratesService.getExchangeRate(fromCurrency, toCurrency);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                from: rateInfo.fromCurrency,
+                to: rateInfo.toCurrency,
+                rate: rateInfo.rate,
+                inverse: rateInfo.inverse
+            }
+        });
+
+    } catch (error) {
+        console.error('Error converting rate:', error);
+        return res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Nu am putut calcula rata de schimb'
+            }
+        });
+    }
+}
+
 export default {
-    // HTTP handlers (pentru routes)
     getRates,
     getRateByCurrency,
-    refreshRates
+    refreshRates,
+    convert
 };
 
 

@@ -2,7 +2,7 @@ import services from '../../services/index.js';
 
 async function getTransactions(req, res) {
     try {
-        const userId = req.user.userId;
+        const userId = req.user.user_id;
 
         // Query params pentru filtrare si paginare
         const {

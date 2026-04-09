@@ -3,7 +3,7 @@ import xml2js from 'xml2js';
 import config from '../config/index.js';
 
 const BNR_URL = 'https://www.bnr.ro/nbrfxrates.xml';
-const SUPPORTED_CURRENCIES = ['EUR', 'USD'];
+const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP'];
 
 async function fetchBNRRates() {
     try {
@@ -125,9 +125,53 @@ async function getRate(fromCurrency) {
     return data;
 } 
 
-export default{
+/**
+ * Calculeaza rata de schimb intre doua valute
+ * Toate ratele sunt stocate vs RON, deci trebuie sa convertim
+ */
+async function getExchangeRate(fromCurrency, toCurrency) {
+    // Daca sunt aceleasi, rata e 1
+    if (fromCurrency === toCurrency) {
+        return { rate: 1, inverse: 1 };
+    }
+
+    // Obtine ratele vs RON
+    const rates = await getCurrentRates();
+
+    // Construieste un map currency -> rate vs RON
+    const rateMap = { RON: 1 };
+    for (const r of rates) {
+        rateMap[r.from_currency] = r.rate;
+    }
+
+    // Verifica ca avem ratele necesare
+    if (fromCurrency !== 'RON' && !rateMap[fromCurrency]) {
+        throw new Error(`Nu avem rata pentru ${fromCurrency}`);
+    }
+    if (toCurrency !== 'RON' && !rateMap[toCurrency]) {
+        throw new Error(`Nu avem rata pentru ${toCurrency}`);
+    }
+
+    // Calculeaza rata: fromCurrency -> RON -> toCurrency
+    // 1 EUR = 5 RON, 1 USD = 4.5 RON
+    // EUR -> USD: 5 / 4.5 = 1.11
+    const fromToRon = rateMap[fromCurrency] || 1;
+    const toToRon = rateMap[toCurrency] || 1;
+
+    const rate = fromToRon / toToRon;
+
+    return {
+        rate: rate,
+        inverse: 1 / rate,
+        fromCurrency,
+        toCurrency
+    };
+}
+
+export default {
     updateRates,
     getCurrentRates,
-    getRate
+    getRate,
+    getExchangeRate
 }
  

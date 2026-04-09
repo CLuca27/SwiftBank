@@ -4,6 +4,7 @@ import rates from "./rate-controller.js";
 import refreshToken from "./refresh-token-controller.js";
 import transaction from "./transaction-controller.js";
 import account from "./account-controller.js";
+import user from "./user-controller.js";
 
 
 export default {
@@ -12,5 +13,6 @@ export default {
     rates,
     refreshToken,
     transaction,
-    account
+    account,
+    user
 }

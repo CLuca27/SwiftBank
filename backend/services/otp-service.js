@@ -102,74 +102,74 @@ async function saveCode({ phone, email, code, purpose }) {
     }
 }
 
-async function checkCode({ phone, email, code, purpose }) {
+async function checkCode({ phone, email, code, purpose, markAsUsed = true }) {
     try {
         let findQuery = config.supabase
             .from('otp_codes')
             .select('*')
             .eq('purpose', purpose)
             .eq('used', false);
-        
+
         if (phone) {
             findQuery = findQuery.eq('phone', phone);
         } else if (email) {
             findQuery = findQuery.eq('email', email);
         }
-        
+
         const { data: otp, error: findError } = await findQuery
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
-        
+
         // Nu există OTP
         if (findError || !otp) {
-            return { 
-                success: false, 
+            return {
+                success: false,
                 error: {
                     code: 'OTP_NOT_FOUND',
                     message: 'Codul nu a fost găsit. Solicită un cod nou'
                 }
             };
         }
-        
+
         // Verifică expirare ÎNAINTE de attempts
         const now = new Date();
-        const expiresAt = new Date(otp.expires_at + 'Z'); 
-        
+        const expiresAt = new Date(otp.expires_at + 'Z');
+
         if (now > expiresAt) {
-            return { 
-                success: false, 
+            return {
+                success: false,
                 error: {
                     code: 'OTP_EXPIRED',
                     message: 'Codul a expirat. Solicită unul nou.'
                 }
             };
         }
-        
+
         // Max attempts?
         const maxAttempts = parseInt(process.env.OTP_MAX_ATTEMPTS) || 3;
         if (otp.attempts >= maxAttempts) {
-            return { 
-                success: false, 
+            return {
+                success: false,
                 error: {
                     code: 'OTP_MAX_ATTEMPTS',
                     message: 'Prea multe încercări. Solicită un cod nou.'
                 }
             };
-        } 
-        
+        }
+
         // Verifică codul
         const isValid = await bcrypt.compare(code, otp.code_hash);
-        
-        if (!isValid) { 
+
+        if (!isValid) {
             // Incrementează attempts
             const newAttempts = otp.attempts + 1;
-            
+
             await config.supabase
                 .from('otp_codes')
                 .update({ attempts: newAttempts })
                 .eq('otp_id', otp.otp_id);
-            
+
             const attemptsLeft = maxAttempts - newAttempts;
 
             // Dacă nu mai are încercări
@@ -182,9 +182,9 @@ async function checkCode({ phone, email, code, purpose }) {
                     }
                 };
             }
-            
-            return { 
-                success: false, 
+
+            return {
+                success: false,
                 error: {
                     code: 'OTP_INVALID',
                     message: `Cod incorect. Mai ai ${attemptsLeft} ${attemptsLeft === 1 ? 'încercare' : 'încercări'}.`,
@@ -193,22 +193,24 @@ async function checkCode({ phone, email, code, purpose }) {
             };
         }
 
-        // Cod corect - marchează ca folosit
-        const { error: usedError } = await config.supabase
-            .from('otp_codes')
-            .update({ used: true })
-            .eq('otp_id', otp.otp_id);
-        
-        if (usedError) {
-            throw usedError;
+        // Cod corect - marchează ca folosit doar dacă e cerut
+        if (markAsUsed) {
+            const { error: usedError } = await config.supabase
+                .from('otp_codes')
+                .update({ used: true })
+                .eq('otp_id', otp.otp_id);
+
+            if (usedError) {
+                throw usedError;
+            }
         }
-        
+
         return { success: true };
-        
+
     } catch (error) {
         console.error('Eroare checkCode:', error);
-        return { 
-            success: false, 
+        return {
+            success: false,
             error: {
                 code: 'INTERNAL_SERVER_ERROR',
                 message: 'Eroare la verificarea codului'

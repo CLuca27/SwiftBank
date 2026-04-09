@@ -149,7 +149,7 @@ async function sendOTP(req, res) {
             });
         } 
 
-        const validPurposes = ['REGISTER_PHONE', 'REGISTER_EMAIL'];
+        const validPurposes = ['REGISTER_PHONE', 'REGISTER_EMAIL', 'RESET_PIN'];
         if (!purpose || !validPurposes.includes(purpose)) {
             return res.status(400).json({
                 success: false,
@@ -229,7 +229,7 @@ async function sendOTP(req, res) {
 async function verifyOTP(req, res) {
     try {
         const { phone, email, code, purpose } = req.body;
-        
+
         if ((!phone && !email) || !code || !purpose) {
             return res.status(400).json({
                 success: false,
@@ -239,26 +239,31 @@ async function verifyOTP(req, res) {
                 }
             });
         }
-        
+
+        // Pentru RESET_PIN, nu marcăm OTP-ul ca folosit aici
+        // Va fi marcat la apelul resetPin
+        const markAsUsed = purpose !== 'RESET_PIN';
+
         const result = await services.otpServices.checkCode({
             phone: phone || null,
             email: email || null,
             code,
-            purpose
+            purpose,
+            markAsUsed
         });
-        
+
         if (!result.success) {
             return res.status(400).json({
                 success: false,
                 error: result.error
             });
         }
-        
+
         return res.status(200).json({
             success: true,
             message: 'Cod verificat cu succes'
         });
-        
+
     } catch (error) {
         console.error('Eroare verifyOTP:', error);
         return res.status(500).json({
@@ -365,6 +370,9 @@ async function register(req, res) {
         if (createError) {
             throw createError;
         }
+
+        // Creeaza automat un cont RON pentru noul utilizator
+        await services.accountService.createAccount(newUser.user_id, 'RON', 'CURRENT');
 
         const accessToken = services.authService.generateAccessToken(newUser);
         const refreshToken = services.authService.generateRefreshToken(newUser);
@@ -681,13 +689,7 @@ async function login(req, res) {
             message: 'Autentificare reușită',
             data: {
                 access_token: accessToken,
-                refresh_token: refreshToken,
-                user: {
-                    user_id: user.user_id,
-                    email: user.email,
-                    first_name: user.first_name,
-                    last_name: user.last_name
-                }
+                refresh_token: refreshToken
             }
         });
         
@@ -753,6 +755,218 @@ async function logout(req, res) {
 }
 
 
+async function forgotPin(req, res) {
+    try {
+        const { phone, email } = req.body;
+
+        if (!phone && !email) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'MISSING_REQUIRED_FIELDS',
+                    message: 'Telefonul sau email-ul este obligatoriu'
+                }
+            });
+        }
+
+        // Găsește user-ul
+        let query = config.supabase
+            .from('users')
+            .select('user_id, phone, email, status');
+
+        if (phone) {
+            query = query.eq('phone', phone);
+        } else {
+            query = query.eq('email', email);
+        }
+
+        const { data: user, error: findError } = await query.maybeSingle();
+
+        if (findError || !user) {
+            return res.status(404).json({
+                success: false,
+                error: {
+                    code: 'USER_NOT_FOUND',
+                    message: 'Nu există cont cu aceste date'
+                }
+            });
+        }
+
+        if (user.status === 'BLOCKED') {
+            return res.status(403).json({
+                success: false,
+                error: {
+                    code: 'ACCOUNT_BLOCKED',
+                    message: 'Contul este blocat. Contactează suportul.'
+                }
+            });
+        }
+
+        // Verifică cooldown (30 secunde)
+        const identifier = user.phone;
+        const { data: recentOtp } = await config.supabase
+            .from('otp_codes')
+            .select('created_at')
+            .eq('phone', identifier)
+            .eq('purpose', 'RESET_PIN')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (recentOtp) {
+            const secondsSince = (Date.now() - new Date(recentOtp.created_at + 'Z').getTime()) / 1000;
+            if (secondsSince < 30) {
+                const secondsLeft = Math.ceil(30 - secondsSince);
+                return res.status(429).json({
+                    success: false,
+                    error: {
+                        code: 'OTP_COOLDOWN',
+                        message: `Așteaptă ${secondsLeft} secunde`,
+                        seconds_left: secondsLeft
+                    }
+                });
+            }
+        }
+
+        // Generează și salvează codul (cu ambele: phone și email)
+        const code = services.otpServices.generateCode();
+
+        await services.otpServices.saveCode({
+            phone: user.phone,
+            email: user.email,
+            code,
+            purpose: 'RESET_PIN'
+        });
+
+        // Trimite codul pe SMS
+        console.log(`[RESET_PIN] Trimitere cod ${code} către telefonul ${user.phone}`);
+        // await services.smsService.sendOTP_SMS(user.phone, code);
+
+        // Mascăm numărul de telefon pentru răspuns
+        const maskedPhone = user.phone.replace(/(\+40)(\d{2})(\d+)(\d{2})/, '$1$2****$4');
+
+        return res.status(200).json({
+            success: true,
+            message: 'Cod trimis pe SMS',
+            data: {
+                masked_phone: maskedPhone
+            }
+        });
+
+    } catch (error) {
+        console.error('Eroare forgotPin:', error);
+        return res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Eroare la trimiterea codului'
+            }
+        });
+    }
+}
+
+async function resetPin(req, res) {
+    try {
+        const { phone, email, code, new_pin } = req.body;
+
+        if ((!phone && !email) || !code || !new_pin) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'MISSING_REQUIRED_FIELDS',
+                    message: 'Date incomplete'
+                }
+            });
+        }
+
+        // Validare PIN
+        const pinRegex = /^\d{6}$/;
+        if (!pinRegex.test(new_pin)) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'INVALID_PIN_FORMAT',
+                    message: 'PIN-ul trebuie să conțină exact 6 cifre'
+                }
+            });
+        }
+
+        // Verifică OTP
+        const result = await services.otpServices.checkCode({
+            phone: phone || null,
+            email: email || null,
+            code,
+            purpose: 'RESET_PIN'
+        });
+
+        if (!result.success) {
+            return res.status(400).json({
+                success: false,
+                error: result.error
+            });
+        }
+
+        // Găsește user-ul
+        let query = config.supabase
+            .from('users')
+            .select('user_id');
+
+        if (phone) {
+            query = query.eq('phone', phone);
+        } else {
+            query = query.eq('email', email);
+        }
+
+        const { data: user, error: findError } = await query.maybeSingle();
+
+        if (findError || !user) {
+            return res.status(404).json({
+                success: false,
+                error: {
+                    code: 'USER_NOT_FOUND',
+                    message: 'Nu există cont cu aceste date'
+                }
+            });
+        }
+
+        // Hash noul PIN
+        const newPasswordHash = await services.authService.hashPassword(new_pin);
+
+        // Actualizează PIN-ul și resetează lock-urile
+        await config.supabase
+            .from('users')
+            .update({
+                password_hash: newPasswordHash,
+                failed_attempts: 0,
+                lock_count: 0,
+                locked_until: null,
+                status: 'ACTIVE'
+            })
+            .eq('user_id', user.user_id);
+
+        // Șterge toate sesiunile existente (forțează re-login)
+        await config.supabase
+            .from('refresh_tokens')
+            .delete()
+            .eq('user_id', user.user_id);
+
+        return res.status(200).json({
+            success: true,
+            message: 'PIN-ul a fost resetat cu succes'
+        });
+
+    } catch (error) {
+        console.error('Eroare resetPin:', error);
+        return res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Eroare la resetarea PIN-ului'
+            }
+        });
+    }
+}
+
 export default {
     check,
     sendOTP,
@@ -760,5 +974,7 @@ export default {
     register,
     identify,
     login,
-    logout
+    logout,
+    forgotPin,
+    resetPin
 }
