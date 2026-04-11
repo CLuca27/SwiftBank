@@ -21,7 +21,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.swiftbank.R;
 import com.example.swiftbank.activities.dashboard.DashboardActivity;
 import com.example.swiftbank.api.ApiClient;
+import com.example.swiftbank.api.dto.request.ForgotPinRequest;
 import com.example.swiftbank.api.dto.request.LoginRequest;
+import com.example.swiftbank.api.dto.response.data.ForgotPinData;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.response.data.LoginData;
@@ -31,6 +33,7 @@ import com.example.swiftbank.api.dto.response.data.error.LoginCooldownErrorData;
 import com.example.swiftbank.storage.TokenManager;
 import com.example.swiftbank.utils.DeviceDetails;
 import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.utils.SwiftBankDialog;
 import com.example.swiftbank.views.ParticlesView;
 
 import java.text.SimpleDateFormat;
@@ -68,7 +71,9 @@ public class LoginPinActivity extends AppCompatActivity {
     private StringBuilder currentPin = new StringBuilder();
     private boolean isAnimating = false;
     private boolean isLocked = false;
+    private boolean isLoading = false;
     private CountDownTimer lockTimer;
+    private AnimatorSet bouncingAnimator;
 
     // Data from Intent
     private String phone;
@@ -123,6 +128,8 @@ public class LoginPinActivity extends AppCompatActivity {
         dots[5] = findViewById(R.id.dot6);
 
         btnBackspace = findViewById(R.id.btnBackspace);
+        btnBackspace.setAlpha(0f);
+        btnBackspace.setEnabled(false);
     }
 
     private void setupNumpad() {
@@ -149,10 +156,7 @@ public class LoginPinActivity extends AppCompatActivity {
     private void setupListeners() {
         btnBack.setOnClickListener(v -> finish());
 
-        tvForgotPin.setOnClickListener(v -> {
-            // TODO: Implementează recuperare PIN
-            Log.d(TAG, "Forgot PIN clicked");
-        });
+        tvForgotPin.setOnClickListener(v -> showForgotPinDialog());
 
         btnBiometric.setOnClickListener(v -> {
             // TODO: Implementează autentificare biometrică
@@ -207,6 +211,7 @@ public class LoginPinActivity extends AppCompatActivity {
         hideError();
         currentPin.append(digit);
         updateDots();
+        updateBackspaceVisibility();
         animateDotFill(currentPin.length() - 1);
 
         if (currentPin.length() == PIN_LENGTH) {
@@ -222,6 +227,7 @@ public class LoginPinActivity extends AppCompatActivity {
         int lastIndex = currentPin.length() - 1;
         currentPin.deleteCharAt(lastIndex);
         animateDotEmpty(lastIndex);
+        updateBackspaceVisibility();
         hideError();
     }
 
@@ -353,6 +359,81 @@ public class LoginPinActivity extends AppCompatActivity {
         finish();
     }
 
+    // ==================== FORGOT PIN ====================
+
+    private void showForgotPinDialog() {
+        new SwiftBankDialog(this)
+                .setIcon(R.drawable.ic_block)
+                .setTitle("Resetare PIN")
+                .setMessage("Vei primi un cod SMS pentru a-ți reseta PIN-ul.")
+                .setPrimaryButton("Trimite codul", v -> requestPinReset())
+                .setSecondaryButton("Anulează", null)
+                .show();
+    }
+
+    private void requestPinReset() {
+        showLoading(true);
+
+        ForgotPinRequest request;
+        if (phone != null && !phone.isEmpty()) {
+            request = ForgotPinRequest.withPhone(phone);
+        } else if (email != null && !email.isEmpty()) {
+            request = ForgotPinRequest.withEmail(email);
+        } else {
+            showLoading(false);
+            SwiftBankDialog.showErrorDialog(this, "Date insuficiente pentru resetare");
+            return;
+        }
+
+        ApiClient.getAuthService().forgotPin(request).enqueue(new Callback<ApiResponse<ForgotPinData>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<ForgotPinData>> call, Response<ApiResponse<ForgotPinData>> response) {
+                showLoading(false);
+
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+                    ForgotPinData data = response.body().getData();
+                    String maskedPhone = data != null ? data.getMaskedPhone() : "telefonul tău";
+                    navigateToResetPinOtp(maskedPhone);
+                } else {
+                    handleForgotPinError(response);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<ForgotPinData>> call, Throwable t) {
+                showLoading(false);
+                SwiftBankDialog.showNoNetworkDialog(LoginPinActivity.this, v -> requestPinReset());
+            }
+        });
+    }
+
+    private void handleForgotPinError(Response<ApiResponse<ForgotPinData>> response) {
+        ApiErrorResponse error = ErrorParser.parseError(response);
+
+        if (error != null && error.getError() != null) {
+            String code = error.getError().getCode();
+
+            if ("OTP_COOLDOWN".equals(code)) {
+                SwiftBankDialog.showErrorDialog(this, "Așteaptă puțin înainte de a cere un nou cod.");
+            } else if ("ACCOUNT_BLOCKED".equals(code)) {
+                SwiftBankDialog.showErrorDialog(this, "Contul este blocat. Contactează suportul.");
+            } else {
+                SwiftBankDialog.showErrorDialog(this, error.getError().getMessage());
+            }
+        } else {
+            SwiftBankDialog.showErrorDialog(this, "Eroare la trimiterea codului");
+        }
+    }
+
+    private void navigateToResetPinOtp(String maskedPhone) {
+        Intent intent = new Intent(this, ResetPinOtpActivity.class);
+        intent.putExtra("phone", phone);
+        intent.putExtra("email", email);
+        intent.putExtra("first_name", firstName);
+        intent.putExtra("masked_phone", maskedPhone);
+        startActivity(intent);
+    }
+
     // ==================== LOCK TIMER ====================
 
     private void startLockTimer(int seconds) {
@@ -394,15 +475,6 @@ public class LoginPinActivity extends AppCompatActivity {
         }.start();
     }
 
-    private void setNumpadEnabled(boolean enabled) {
-        for (TextView btn : numpadButtons) {
-            btn.setEnabled(enabled);
-            btn.setAlpha(enabled ? 1f : 0.5f);
-        }
-        btnBackspace.setEnabled(enabled);
-        btnBackspace.setAlpha(enabled ? 1f : 0.5f);
-    }
-
     // ==================== ANIMATIONS ====================
 
     private void showErrorWithShake(String message) {
@@ -439,13 +511,18 @@ public class LoginPinActivity extends AppCompatActivity {
         AnimatorSet pulseSet = new AnimatorSet();
         for (int i = 0; i < dots.length; i++) {
             View dot = dots[i];
-            ObjectAnimator scaleX = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 1.3f, 1f);
-            ObjectAnimator scaleY = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 1.3f, 1f);
-            scaleX.setStartDelay(i * 50L);
-            scaleY.setStartDelay(i * 50L);
-            pulseSet.playTogether(scaleX, scaleY);
+
+            ObjectAnimator scaleX = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 1.5f, 1f);
+            ObjectAnimator scaleY = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 1.5f, 1f);
+            ObjectAnimator bounceUp = ObjectAnimator.ofFloat(dot, "translationY", 0f, -20f, 0f);
+
+            scaleX.setStartDelay(i * 70L);
+            scaleY.setStartDelay(i * 70L);
+            bounceUp.setStartDelay(i * 70L);
+
+            pulseSet.playTogether(scaleX, scaleY, bounceUp);
         }
-        pulseSet.setDuration(300);
+        pulseSet.setDuration(400);
 
         pulseSet.addListener(new AnimatorListenerAdapter() {
             @Override
@@ -453,7 +530,7 @@ public class LoginPinActivity extends AppCompatActivity {
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     isAnimating = false;
                     onComplete.run();
-                }, 200);
+                }, 300);
             }
         });
 
@@ -464,16 +541,16 @@ public class LoginPinActivity extends AppCompatActivity {
         if (index < 0 || index >= dots.length) return;
 
         View dot = dots[index];
-        dot.setScaleX(0.5f);
-        dot.setScaleY(0.5f);
+        dot.setScaleX(0.3f);
+        dot.setScaleY(0.3f);
 
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(dot, "scaleX", 0.5f, 1.2f, 1f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(dot, "scaleY", 0.5f, 1.2f, 1f);
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(dot, "scaleX", 0.3f, 1.3f, 1f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(dot, "scaleY", 0.3f, 1.3f, 1f);
 
         AnimatorSet animSet = new AnimatorSet();
         animSet.playTogether(scaleX, scaleY);
-        animSet.setDuration(150);
-        animSet.setInterpolator(new OvershootInterpolator());
+        animSet.setDuration(250);
+        animSet.setInterpolator(new OvershootInterpolator(2f));
         animSet.start();
     }
 
@@ -514,17 +591,30 @@ public class LoginPinActivity extends AppCompatActivity {
 
     private void updateBackspaceVisibility() {
         if (currentPin.length() > 0) {
-            btnBackspace.setAlpha(1f);
-            btnBackspace.setEnabled(true);
+            if (btnBackspace.getAlpha() == 0f) {
+                // Fade in animation
+                btnBackspace.setEnabled(true);
+                btnBackspace.animate()
+                        .alpha(1f)
+                        .setDuration(150)
+                        .start();
+            }
         } else {
-            btnBackspace.setAlpha(0f);
-            btnBackspace.setEnabled(false);
+            if (btnBackspace.getAlpha() == 1f) {
+                // Fade out animation
+                btnBackspace.animate()
+                        .alpha(0f)
+                        .setDuration(150)
+                        .withEndAction(() -> btnBackspace.setEnabled(false))
+                        .start();
+            }
         }
     }
 
     private void resetPinInput() {
         currentPin.setLength(0);
         resetDots();
+        updateBackspaceVisibility();
     }
 
     private void showError(String message) {
@@ -537,7 +627,72 @@ public class LoginPinActivity extends AppCompatActivity {
     }
 
     private void showLoading(boolean show) {
-        loadingOverlay.setVisibility(show ? View.VISIBLE : View.GONE);
+        isLoading = show;
+        setNumpadEnabled(!show);
+
+        if (show) {
+            startBouncingAnimation();
+        } else {
+            stopBouncingAnimation();
+        }
+    }
+
+    private void setNumpadEnabled(boolean enabled) {
+        for (TextView btn : numpadButtons) {
+            btn.setEnabled(enabled);
+            btn.setAlpha(enabled ? 1f : 0.5f);
+        }
+        btnBackspace.setEnabled(enabled && currentPin.length() > 0);
+        btnBackspace.setAlpha(enabled && currentPin.length() > 0 ? 1f : 0f);
+    }
+
+    private void startBouncingAnimation() {
+        if (bouncingAnimator != null && bouncingAnimator.isRunning()) {
+            return;
+        }
+
+        bouncingAnimator = new AnimatorSet();
+        long duration = 400;
+        long delayBetweenDots = 80;
+
+        for (int i = 0; i < dots.length; i++) {
+            View dot = dots[i];
+
+            ObjectAnimator bounceUp = ObjectAnimator.ofFloat(dot, "translationY", 0f, -30f);
+            bounceUp.setDuration(duration / 2);
+
+            ObjectAnimator bounceDown = ObjectAnimator.ofFloat(dot, "translationY", -30f, 0f);
+            bounceDown.setDuration(duration / 2);
+
+            AnimatorSet dotBounce = new AnimatorSet();
+            dotBounce.playSequentially(bounceUp, bounceDown);
+            dotBounce.setStartDelay(i * delayBetweenDots);
+
+            bouncingAnimator.playTogether(dotBounce);
+        }
+
+        bouncingAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (isLoading) {
+                    bouncingAnimator.setStartDelay(100);
+                    bouncingAnimator.start();
+                }
+            }
+        });
+
+        bouncingAnimator.start();
+    }
+
+    private void stopBouncingAnimation() {
+        if (bouncingAnimator != null) {
+            bouncingAnimator.cancel();
+            bouncingAnimator = null;
+        }
+
+        for (View dot : dots) {
+            dot.setTranslationY(0f);
+        }
     }
 
     // ==================== LIFECYCLE ====================
@@ -545,6 +700,7 @@ public class LoginPinActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopBouncingAnimation();
         if (lockTimer != null) {
             lockTimer.cancel();
         }

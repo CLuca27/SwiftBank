@@ -1,14 +1,17 @@
 package com.example.swiftbank.api.services;
 
 import com.example.swiftbank.api.dto.request.CheckRequest;
+import com.example.swiftbank.api.dto.request.ForgotPinRequest;
 import com.example.swiftbank.api.dto.request.IdentifyRequest;
 import com.example.swiftbank.api.dto.request.LoginRequest;
 import com.example.swiftbank.api.dto.request.RegisterRequest;
+import com.example.swiftbank.api.dto.request.ResetPinRequest;
 import com.example.swiftbank.api.dto.request.SendOtpRequest;
 import com.example.swiftbank.api.dto.request.RefreshRequest;
 import com.example.swiftbank.api.dto.request.VerifyOtpRequest;
 import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.response.data.CheckData;
+import com.example.swiftbank.api.dto.response.data.ForgotPinData;
 import com.example.swiftbank.api.dto.response.data.LoginData;
 import com.example.swiftbank.api.dto.response.data.RefreshData;
 import com.example.swiftbank.api.dto.response.data.TokenData;
@@ -36,5 +39,11 @@ public interface AuthService {
 
     @POST("auth/register")
     Call<ApiResponse<TokenData>> register(@Body RegisterRequest request);
+
+    @POST("auth/forgot-pin")
+    Call<ApiResponse<ForgotPinData>> forgotPin(@Body ForgotPinRequest request);
+
+    @POST("auth/reset-pin")
+    Call<ApiResponse<Void>> resetPin(@Body ResetPinRequest request);
 }
 

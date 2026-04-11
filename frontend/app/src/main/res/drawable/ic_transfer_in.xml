@@ -1,9 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Săgeată în jos (bani intrați) - linie + vârf -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M19,12l-7,-7v4H5v6h7v4l7,-7z"/>
+        android:pathData="M11,4h2v12h-2z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,20l-5,-5l5,0l5,0z"/>
 </vector>

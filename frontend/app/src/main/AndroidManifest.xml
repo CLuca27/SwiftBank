@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:name=".SwiftBankApplication"
@@ -22,7 +23,19 @@
             android:name=".activities.dashboard.DashboardActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.exchange.ExchangeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.settings.SettingsActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.login.LoginPinActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.login.ResetPinOtpActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.login.ResetPinSetActivity"
             android:exported="false" />
         <activity
             android:name=".activities.register.RegisterPinActivity"
@@ -50,6 +63,7 @@
             android:exported="false" />
         <activity
             android:name=".activities.splash.SplashActivity"
+            android:theme="@style/Theme.SwiftBank.Splash"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

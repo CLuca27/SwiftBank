@@ -6,8 +6,10 @@
     <color name="green_medium">#FF0A5C2E</color>
     <color name="green_light">#FF0D7C3E</color>
     <color name="green_accent">#FF10994C</color>
+    <color name="green_accent_50">#8010994C</color>
 
     <!-- Neutrals -->
+    <color name="dark_background">#FF0D0D0D</color>
     <color name="white">#FFFFFFFF</color>
     <color name="white_10">#1AFFFFFF</color>
     <color name="white_20">#33FFFFFF</color>
@@ -19,4 +21,14 @@
     <color name="black">#FF000000</color>
     <!-- Status bar -->
     <color name="status_bar">#FF041A0D</color>
+
+    <!-- Error -->
+    <color name="error_red">#FFEF4444</color>
+
+    <!-- Splash -->
+    <color name="splash_background">#FFFFFFFF</color>
+
+    <!-- Switch colors -->
+    <color name="switch_track_color">#4D10994C</color>
+    <color name="switch_thumb_color">#FF10994C</color>
 </resources>

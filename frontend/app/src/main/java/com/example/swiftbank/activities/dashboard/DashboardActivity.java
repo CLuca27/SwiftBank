@@ -1,19 +1,25 @@
 package com.example.swiftbank.activities.dashboard;
 
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.example.swiftbank.utils.SwiftBankDialog;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -24,11 +30,22 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.swiftbank.R;
 import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.response.ApiResponse;
+import com.example.swiftbank.api.dto.request.AddAccountRequest;
+import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.data.AccountData;
 import com.example.swiftbank.api.dto.response.data.AccountsData;
+import com.example.swiftbank.api.dto.response.data.NewAccountData;
+import com.example.swiftbank.api.dto.response.data.ProfileData;
 import com.example.swiftbank.api.dto.response.data.TransactionsData;
+import com.example.swiftbank.api.dto.response.data.RatesData;
+import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.storage.RatesManager;
 import com.example.swiftbank.storage.TokenManager;
 import com.example.swiftbank.views.ParticlesView;
+import com.example.swiftbank.activities.settings.SettingsActivity;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -64,13 +81,21 @@ public class DashboardActivity extends AppCompatActivity {
     private LinearLayout emptyTransactionsState;
     private BottomNavigationView bottomNavigation;
 
+    // Skeleton views
+    private LinearLayout profileSkeleton, profileContent;
+    private LinearLayout balanceSkeleton;
+    private LinearLayout transactionsSkeleton;
+
     // Quick Actions
     private LinearLayout btnAddMoney, btnSend, btnExchange, btnMore;
+    private ImageView btnSettings;
 
     // State
     private int selectedAccountIndex = 0;
     private List<Account> accounts = new ArrayList<>();
     private List<Object> transactionItems = new ArrayList<>();
+    private String userFirstName = "";
+    private String userLastName = "";
 
     // Adapters
     private TransactionsAdapter transactionsAdapter;
@@ -83,8 +108,60 @@ public class DashboardActivity extends AppCompatActivity {
         initViews();
         setupListeners();
         setupTransactionsList();
-        updateGreeting();
+        loadProfile();
         loadAccounts();
+        loadRates();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Refresh data when returning from other activities
+        loadAccounts();
+        loadRates();
+
+        // Start particles animation
+        if (particlesView != null) {
+            particlesView.startAnimation();
+        }
+    }
+
+    private void loadRates() {
+        RatesManager ratesManager = RatesManager.getInstance(this);
+
+        // Verifică inteligent dacă trebuie refresh (bazat pe ora BNR 13:00)
+        if (ratesManager.needsRefresh()) {
+            fetchRatesFromApi();
+        }
+    }
+
+    private void fetchRatesFromApi() {
+        ApiClient.getRatesService().getRates().enqueue(new Callback<ApiResponse<RatesData>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<RatesData>> call, Response<ApiResponse<RatesData>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                    RatesData data = response.body().getData();
+                    if (data.getRates() != null && !data.getRates().isEmpty()) {
+                        Map<String, Double> ratesMap = new HashMap<>();
+                        String rateDate = null;
+
+                        for (RatesData.RateItem rate : data.getRates()) {
+                            ratesMap.put(rate.getFromCurrency(), rate.getRate());
+                            if (rateDate == null) {
+                                rateDate = rate.getRateDate(); // Ia data din primul item
+                            }
+                        }
+
+                        RatesManager.getInstance(DashboardActivity.this).saveRates(ratesMap, rateDate);
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<RatesData>> call, Throwable t) {
+                // Silent fail - folosește ratele din cache dacă există
+            }
+        });
     }
 
     private void initViews() {
@@ -107,6 +184,13 @@ public class DashboardActivity extends AppCompatActivity {
         btnSend = findViewById(R.id.btnSend);
         btnExchange = findViewById(R.id.btnExchange);
         btnMore = findViewById(R.id.btnMore);
+        btnSettings = findViewById(R.id.btnSettings);
+
+        // Skeleton views
+        profileSkeleton = findViewById(R.id.profileSkeleton);
+        profileContent = findViewById(R.id.profileContent);
+        balanceSkeleton = findViewById(R.id.balanceSkeleton);
+        transactionsSkeleton = findViewById(R.id.transactionsSkeleton);
 
         setupSwipeGesture();
     }
@@ -180,11 +264,15 @@ public class DashboardActivity extends AppCompatActivity {
         });
 
         btnExchange.setOnClickListener(v -> {
-            Toast.makeText(this, "Schimbă valută - Coming soon", Toast.LENGTH_SHORT).show();
+            startActivity(new android.content.Intent(this, com.example.swiftbank.activities.exchange.ExchangeActivity.class));
         });
 
         btnMore.setOnClickListener(v -> {
             Toast.makeText(this, "Mai multe opțiuni - Coming soon", Toast.LENGTH_SHORT).show();
+        });
+
+        btnSettings.setOnClickListener(v -> {
+            startActivity(new Intent(this, SettingsActivity.class));
         });
 
         bottomNavigation.setOnItemSelectedListener(item -> {
@@ -231,11 +319,272 @@ public class DashboardActivity extends AppCompatActivity {
 
         LinearLayout btnAddAccount = sheetView.findViewById(R.id.btnAddAccount);
         btnAddAccount.setOnClickListener(v -> {
-            Toast.makeText(this, "Adaugă cont nou - Coming soon", Toast.LENGTH_SHORT).show();
             bottomSheet.dismiss();
+            showAddAccountDialog();
         });
 
         bottomSheet.show();
+    }
+
+    private void showAddAccountDialog() {
+        // Verifică ce valute are deja
+        List<String> existingCurrencies = new ArrayList<>();
+        for (Account acc : accounts) {
+            existingCurrencies.add(acc.currency);
+        }
+
+        // Valutele disponibile
+        List<CurrencyOption> availableCurrencies = new ArrayList<>();
+
+        if (!existingCurrencies.contains("EUR")) {
+            availableCurrencies.add(new CurrencyOption("EUR", "Euro", R.drawable.flag_eur));
+        }
+        if (!existingCurrencies.contains("USD")) {
+            availableCurrencies.add(new CurrencyOption("USD", "Dolar american", R.drawable.flag_usd));
+        }
+        if (!existingCurrencies.contains("GBP")) {
+            availableCurrencies.add(new CurrencyOption("GBP", "Liră sterlină", R.drawable.flag_gbp));
+        }
+
+        if (availableCurrencies.isEmpty()) {
+            showInfoDialog("Toate conturile create", "Ai deja conturi în toate valutele disponibile (RON, EUR, USD, GBP).");
+            return;
+        }
+
+        // Afișează bottom sheet
+        BottomSheetDialog bottomSheet = new BottomSheetDialog(this, R.style.BottomSheetDialogTheme);
+        View sheetView = LayoutInflater.from(this).inflate(R.layout.bottom_sheet_add_account, null);
+        bottomSheet.setContentView(sheetView);
+
+        // Views
+        TextView tvSheetTitle = sheetView.findViewById(R.id.tvSheetTitle);
+        RecyclerView rvCurrencies = sheetView.findViewById(R.id.rvCurrencies);
+        LinearLayout loadingContainer = sheetView.findViewById(R.id.loadingContainer);
+        TextView tvLoadingMessage = sheetView.findViewById(R.id.tvLoadingMessage);
+        View dot1 = sheetView.findViewById(R.id.dot1);
+        View dot2 = sheetView.findViewById(R.id.dot2);
+        View dot3 = sheetView.findViewById(R.id.dot3);
+
+        rvCurrencies.setLayoutManager(new LinearLayoutManager(this));
+
+        CurrencyOptionsAdapter adapter = new CurrencyOptionsAdapter(availableCurrencies, currency -> {
+            // Arată loading state
+            tvSheetTitle.setText("Un moment...");
+            tvLoadingMessage.setText("Contul " + currency.name + " e pe drum...");
+            rvCurrencies.setVisibility(View.GONE);
+            loadingContainer.setVisibility(View.VISIBLE);
+            bottomSheet.setCancelable(false);
+
+            // Pornește animația bouncing dots
+            AnimatorSet bounceAnimation = createBouncingDotsAnimation(dot1, dot2, dot3);
+            bounceAnimation.start();
+
+            // Creează contul cu durată minimă de loading
+            long startTime = System.currentTimeMillis();
+            addAccount(currency.code, bottomSheet, bounceAnimation, startTime);
+        });
+        rvCurrencies.setAdapter(adapter);
+
+        bottomSheet.show();
+    }
+
+    private AnimatorSet createBouncingDotsAnimation(View dot1, View dot2, View dot3) {
+        int duration = 400;
+        float bounceHeight = -20f;
+
+        ObjectAnimator bounce1 = ObjectAnimator.ofFloat(dot1, "translationY", 0f, bounceHeight, 0f);
+        bounce1.setDuration(duration);
+        bounce1.setInterpolator(new AccelerateDecelerateInterpolator());
+
+        ObjectAnimator bounce2 = ObjectAnimator.ofFloat(dot2, "translationY", 0f, bounceHeight, 0f);
+        bounce2.setDuration(duration);
+        bounce2.setInterpolator(new AccelerateDecelerateInterpolator());
+        bounce2.setStartDelay(150);
+
+        ObjectAnimator bounce3 = ObjectAnimator.ofFloat(dot3, "translationY", 0f, bounceHeight, 0f);
+        bounce3.setDuration(duration);
+        bounce3.setInterpolator(new AccelerateDecelerateInterpolator());
+        bounce3.setStartDelay(300);
+
+        AnimatorSet animatorSet = new AnimatorSet();
+        animatorSet.playTogether(bounce1, bounce2, bounce3);
+        animatorSet.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(android.animation.Animator animation) {
+                animatorSet.start();
+            }
+        });
+
+        return animatorSet;
+    }
+
+    // ==================== CURRENCY OPTION ====================
+
+    static class CurrencyOption {
+        String code;
+        String name;
+        int flagRes;
+
+        CurrencyOption(String code, String name, int flagRes) {
+            this.code = code;
+            this.name = name;
+            this.flagRes = flagRes;
+        }
+    }
+
+    // ==================== CURRENCY OPTIONS ADAPTER ====================
+
+    class CurrencyOptionsAdapter extends RecyclerView.Adapter<CurrencyOptionsAdapter.ViewHolder> {
+        private List<CurrencyOption> currencies;
+        private OnCurrencyClickListener listener;
+
+        interface OnCurrencyClickListener {
+            void onCurrencyClick(CurrencyOption currency);
+        }
+
+        CurrencyOptionsAdapter(List<CurrencyOption> currencies, OnCurrencyClickListener listener) {
+            this.currencies = currencies;
+            this.listener = listener;
+        }
+
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_currency_option, parent, false);
+            return new ViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            holder.bind(currencies.get(position));
+        }
+
+        @Override
+        public int getItemCount() {
+            return currencies.size();
+        }
+
+        class ViewHolder extends RecyclerView.ViewHolder {
+            ImageView ivFlag;
+            TextView tvCurrencyName, tvCurrencyCode;
+
+            ViewHolder(@NonNull View itemView) {
+                super(itemView);
+                ivFlag = itemView.findViewById(R.id.ivFlag);
+                tvCurrencyName = itemView.findViewById(R.id.tvCurrencyName);
+                tvCurrencyCode = itemView.findViewById(R.id.tvCurrencyCode);
+
+                itemView.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onCurrencyClick(currencies.get(getAdapterPosition()));
+                    }
+                });
+            }
+
+            void bind(CurrencyOption currency) {
+                tvCurrencyName.setText(currency.name);
+                tvCurrencyCode.setText(currency.code);
+                ivFlag.setImageResource(currency.flagRes);
+            }
+        }
+    }
+
+    private static final long MIN_LOADING_DURATION = 4000; // 4 secunde
+
+    private void addAccount(String currency, BottomSheetDialog bottomSheet, AnimatorSet animation, long startTime) {
+        ApiClient.getAccountService().addAccount(new AddAccountRequest(currency))
+                .enqueue(new Callback<ApiResponse<NewAccountData>>() {
+                    @Override
+                    public void onResponse(Call<ApiResponse<NewAccountData>> call, Response<ApiResponse<NewAccountData>> response) {
+                        long elapsed = System.currentTimeMillis() - startTime;
+                        long delay = Math.max(0, MIN_LOADING_DURATION - elapsed);
+
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                            animation.cancel();
+                            bottomSheet.dismiss();
+
+                            if (response.isSuccessful() && response.body() != null) {
+                                Toast.makeText(DashboardActivity.this,
+                                        "Cont " + currency + " creat cu succes!", Toast.LENGTH_SHORT).show();
+                                loadAccounts();
+                            } else {
+                                ApiErrorResponse error = ErrorParser.parseError(response);
+                                String message = "Nu am putut crea contul";
+                                if (error != null && error.getError() != null) {
+                                    message = error.getError().getMessage();
+                                }
+                                showErrorDialog("Eroare", message);
+                            }
+                        }, delay);
+                    }
+
+                    @Override
+                    public void onFailure(Call<ApiResponse<NewAccountData>> call, Throwable t) {
+                        long elapsed = System.currentTimeMillis() - startTime;
+                        long delay = Math.max(0, MIN_LOADING_DURATION - elapsed);
+
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                            animation.cancel();
+                            bottomSheet.dismiss();
+                            showErrorDialog("Eroare de conexiune", "Verifică conexiunea la internet și încearcă din nou.");
+                        }, delay);
+                    }
+                });
+    }
+
+    private void showErrorDialog(String title, String message) {
+        new SwiftBankDialog(this)
+                .setIcon(R.drawable.ic_block)
+                .setTitle(title)
+                .setMessage(message)
+                .setPrimaryButton("OK", null)
+                .show();
+    }
+
+    private void showInfoDialog(String title, String message) {
+        new SwiftBankDialog(this)
+                .setIcon(R.drawable.ic_check_circle)
+                .setTitle(title)
+                .setMessage(message)
+                .setPrimaryButton("Am înțeles", null)
+                .show();
+    }
+
+    private void loadProfile() {
+        ApiClient.getUserService().getProfile().enqueue(new Callback<ApiResponse<ProfileData>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<ProfileData>> call, Response<ApiResponse<ProfileData>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                    ProfileData profile = response.body().getData();
+                    userFirstName = profile.getFirstName();
+                    userLastName = profile.getLastName();
+                    updateGreeting();
+                }
+                showProfileContent();
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<ProfileData>> call, Throwable t) {
+                // Fallback - greeting fara nume
+                updateGreeting();
+                showProfileContent();
+            }
+        });
+    }
+
+    private void showProfileContent() {
+        if (profileSkeleton != null && profileContent != null) {
+            profileSkeleton.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .withEndAction(() -> {
+                    profileSkeleton.setVisibility(View.GONE);
+                    profileContent.setVisibility(View.VISIBLE);
+                    profileContent.setAlpha(0f);
+                    profileContent.animate().alpha(1f).setDuration(200).start();
+                }).start();
+        }
     }
 
     private void updateGreeting() {
@@ -252,10 +601,10 @@ public class DashboardActivity extends AppCompatActivity {
 
         tvGreeting.setText(greeting);
 
-        // TODO: Get user name from TokenManager or API
-        String firstName = "Lucas";
-        tvUserName.setText(firstName);
-        tvAvatarInitials.setText(getInitials(firstName, "Cirimpei"));
+        if (userFirstName != null && !userFirstName.isEmpty()) {
+            tvUserName.setText(userFirstName);
+            tvAvatarInitials.setText(getInitials(userFirstName, userLastName));
+        }
     }
 
     private String getInitials(String firstName, String lastName) {
@@ -292,17 +641,35 @@ public class DashboardActivity extends AppCompatActivity {
                         updateAccountDisplay();
                         loadTransactionsForAccount(accounts.get(selectedAccountIndex));
                     }
+                    showBalanceContent();
                 } else {
                     Toast.makeText(DashboardActivity.this, "Eroare la incarcarea conturilor", Toast.LENGTH_SHORT).show();
+                    showBalanceContent();
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<AccountsData>> call, Throwable t) {
                 Toast.makeText(DashboardActivity.this, "Eroare de conexiune", Toast.LENGTH_SHORT).show();
+                showBalanceContent();
             }
         });
     }
+
+    private void showBalanceContent() {
+        if (balanceSkeleton != null && balanceSection != null) {
+            balanceSkeleton.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .withEndAction(() -> {
+                    balanceSkeleton.setVisibility(View.GONE);
+                    balanceSection.setVisibility(View.VISIBLE);
+                    balanceSection.setAlpha(0f);
+                    balanceSection.animate().alpha(1f).setDuration(200).start();
+                }).start();
+        }
+    }
+
 
     private void loadTransactionsForAccount(Account account) {
         ApiClient.getTransactionService().getTransactions(account.id, 10, 0)
@@ -324,14 +691,8 @@ public class DashboardActivity extends AppCompatActivity {
                                     lastDateGroup = dateGroup;
                                 }
 
-                                transactionItems.add(new Transaction(
-                                        t.getTitle(),
-                                        t.getSubtitle(),
-                                        t.getAmount(),
-                                        t.getCurrency() != null ? t.getCurrency().trim() : account.currency,
-                                        formatTime(t.getCreatedAt()),
-                                        getIconForTransaction(t)
-                                ));
+                                Transaction transaction = createTransactionItem(t, account.currency);
+                                transactionItems.add(transaction);
                             }
 
                             if (transactionsAdapter != null) {
@@ -344,6 +705,7 @@ public class DashboardActivity extends AppCompatActivity {
                     @Override
                     public void onFailure(Call<ApiResponse<TransactionsData>> call, Throwable t) {
                         Toast.makeText(DashboardActivity.this, "Eroare la incarcarea tranzactiilor", Toast.LENGTH_SHORT).show();
+                        updateTransactionsVisibility();
                     }
                 });
     }
@@ -397,9 +759,22 @@ public class DashboardActivity extends AppCompatActivity {
         String type = t.getTransactionType();
         if (type == null) return R.drawable.ic_shopping;
 
+        // Verifică dacă e schimb valutar (transfer cu conversie)
+        if (t instanceof com.example.swiftbank.api.dto.transaction.TransferTransaction) {
+            com.example.swiftbank.api.dto.transaction.TransferTransaction transfer =
+                (com.example.swiftbank.api.dto.transaction.TransferTransaction) t;
+            if (transfer.hasCurrencyConversion()) {
+                return R.drawable.ic_exchange;
+            }
+        }
+
         switch (type) {
             case "TRANSFER":
-                return t.getAmount() > 0 ? R.drawable.ic_transfer_in : R.drawable.ic_send;
+                return t.getAmount() > 0 ? R.drawable.ic_transfer_in : R.drawable.ic_transfer_out;
+            case "TRANSFER_IN":
+                return R.drawable.ic_transfer_in;
+            case "TRANSFER_OUT":
+                return R.drawable.ic_transfer_out;
             case "BILL":
                 return R.drawable.ic_payments;
             case "CARD":
@@ -408,7 +783,124 @@ public class DashboardActivity extends AppCompatActivity {
         }
     }
 
+    private Transaction createTransactionItem(com.example.swiftbank.api.dto.transaction.Transaction t, String accountCurrency) {
+        String currency = t.getCurrency() != null ? t.getCurrency().trim() : accountCurrency;
+        String time = formatTime(t.getCreatedAt());
+        int iconRes = getIconForTransaction(t);
+
+        // Verifică dacă e transfer
+        if (t instanceof com.example.swiftbank.api.dto.transaction.TransferTransaction) {
+            com.example.swiftbank.api.dto.transaction.TransferTransaction transfer =
+                (com.example.swiftbank.api.dto.transaction.TransferTransaction) t;
+
+            // Verifică dacă e schimb valutar
+            if (transfer.hasCurrencyConversion()) {
+                // Exchange transaction - suma principală în moneda contului, secundară în cealaltă
+                Double origAmount = transfer.getOriginalAmount();
+                String origCurrency = transfer.getOriginalCurrency();
+
+                if (origAmount != null && origCurrency != null) {
+                    // Verifică care monedă e cea a contului curent
+                    boolean transactionInAccountCurrency = currency.equalsIgnoreCase(accountCurrency.trim());
+
+                    double primaryAmount;
+                    String primaryCurrency;
+                    double secondaryAmount;
+                    String secondaryCurrency;
+                    String fromCurrency;
+                    String toCurrency;
+
+                    if (transactionInAccountCurrency) {
+                        // Tranzacția e deja în moneda contului - corect
+                        primaryAmount = t.getAmount();
+                        primaryCurrency = currency;
+                        secondaryAmount = origAmount;
+                        secondaryCurrency = origCurrency.trim();
+                        fromCurrency = origCurrency.trim();
+                        toCurrency = currency;
+                    } else {
+                        // Tranzacția e în altă monedă - inversăm
+                        primaryAmount = -origAmount; // negativ pentru că e suma plătită
+                        primaryCurrency = origCurrency.trim();
+                        secondaryAmount = Math.abs(t.getAmount());
+                        secondaryCurrency = currency;
+                        fromCurrency = origCurrency.trim();
+                        toCurrency = currency;
+                    }
+
+                    return Transaction.withExchange(
+                        t.getTitle(),
+                        t.getSubtitle(),
+                        primaryAmount,
+                        primaryCurrency,
+                        time,
+                        iconRes,
+                        secondaryAmount,
+                        secondaryCurrency,
+                        fromCurrency,
+                        toCurrency
+                    );
+                }
+            } else if (!transfer.isInternal()) {
+                // Transfer către altă persoană (EXTERNAL) - afișează inițiale
+                // Transferurile INTERNAL (între conturile proprii) vor folosi săgețile
+                String beneficiary = transfer.getBeneficiaryName();
+                if (beneficiary != null && !beneficiary.isEmpty() && !beneficiary.equals("Schimb valutar")) {
+                    String initials = getInitials(beneficiary);
+                    return Transaction.withInitials(
+                        t.getTitle(),
+                        t.getSubtitle(),
+                        t.getAmount(),
+                        currency,
+                        time,
+                        iconRes,
+                        initials
+                    );
+                }
+            }
+        }
+
+        // Tranzacție normală (card, bill, etc.)
+        return new Transaction(
+            t.getTitle(),
+            t.getSubtitle(),
+            t.getAmount(),
+            currency,
+            time,
+            iconRes
+        );
+    }
+
+    private String getInitials(String name) {
+        if (name == null || name.isEmpty()) return "?";
+
+        String[] parts = name.trim().split("\\s+");
+        if (parts.length >= 2) {
+            return (parts[0].substring(0, 1) + parts[parts.length - 1].substring(0, 1)).toUpperCase();
+        } else if (parts.length == 1 && parts[0].length() >= 2) {
+            return parts[0].substring(0, 2).toUpperCase();
+        } else if (parts.length == 1) {
+            return parts[0].substring(0, 1).toUpperCase();
+        }
+        return "?";
+    }
+
     private void updateTransactionsVisibility() {
+        // Ascunde skeleton-ul
+        if (transactionsSkeleton != null && transactionsSkeleton.getVisibility() == View.VISIBLE) {
+            transactionsSkeleton.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .withEndAction(() -> {
+                    transactionsSkeleton.setVisibility(View.GONE);
+                    showTransactionsList();
+                }).start();
+        } else {
+            showTransactionsList();
+        }
+    }
+
+    private void showTransactionsList() {
         if (transactionItems.isEmpty()) {
             emptyTransactionsState.setVisibility(View.VISIBLE);
             rvTransactions.setVisibility(View.GONE);
@@ -424,7 +916,7 @@ public class DashboardActivity extends AppCompatActivity {
         Account account = accounts.get(selectedAccountIndex);
 
         // Update account type label
-        tvAccountType.setText(account.type + " · " + account.currency);
+        tvAccountType.setText(getAccountTypeName(account.type) + " · " + account.currency);
 
         // Update balance
         tvTotalBalance.setText(formatBalance(account.balance));
@@ -467,6 +959,15 @@ public class DashboardActivity extends AppCompatActivity {
             case "USD": return "$";
             case "GBP": return "£";
             default: return "lei";
+        }
+    }
+
+    private String getAccountTypeName(String type) {
+        if (type == null) return "Cont";
+        switch (type.toUpperCase()) {
+            case "CURRENT": return "Curent";
+            case "SAVINGS": return "Economii";
+            default: return type;
         }
     }
 
@@ -516,14 +1017,6 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        if (particlesView != null) {
-            particlesView.startAnimation();
-        }
-    }
-
-    @Override
     protected void onPause() {
         super.onPause();
         if (particlesView != null) {
@@ -557,6 +1050,19 @@ public class DashboardActivity extends AppCompatActivity {
         String time;
         int iconRes;
 
+        // Pentru inițiale (transferuri către persoane)
+        boolean showInitials;
+        String initials;
+
+        // Pentru exchange (sumă secundară)
+        boolean isExchange;
+        double secondaryAmount;
+        String secondaryCurrency;
+
+        // Pentru exchange cu steaguri
+        String fromCurrency;
+        String toCurrency;
+
         Transaction(String title, String subtitle, double amount, String currency, String time, int iconRes) {
             this.title = title;
             this.subtitle = subtitle;
@@ -564,6 +1070,30 @@ public class DashboardActivity extends AppCompatActivity {
             this.currency = currency;
             this.time = time;
             this.iconRes = iconRes;
+            this.showInitials = false;
+            this.isExchange = false;
+        }
+
+        // Constructor extins pentru transferuri cu inițiale
+        static Transaction withInitials(String title, String subtitle, double amount, String currency,
+                                        String time, int iconRes, String initials) {
+            Transaction t = new Transaction(title, subtitle, amount, currency, time, iconRes);
+            t.showInitials = true;
+            t.initials = initials;
+            return t;
+        }
+
+        // Constructor extins pentru exchange cu sumă secundară
+        static Transaction withExchange(String title, String subtitle, double amount, String currency,
+                                        String time, int iconRes, double secondaryAmount,
+                                        String secondaryCurrency, String fromCurrency, String toCurrency) {
+            Transaction t = new Transaction(title, subtitle, amount, currency, time, iconRes);
+            t.isExchange = true;
+            t.secondaryAmount = secondaryAmount;
+            t.secondaryCurrency = secondaryCurrency;
+            t.fromCurrency = fromCurrency;
+            t.toCurrency = toCurrency;
+            return t;
         }
     }
 
@@ -625,7 +1155,7 @@ public class DashboardActivity extends AppCompatActivity {
             }
 
             void bind(Account account, boolean isSelected) {
-                tvAccountName.setText(account.type + " · " + account.currency);
+                tvAccountName.setText(getAccountTypeName(account.type) + " · " + account.currency);
                 tvIban.setText("•••• " + account.iban.substring(account.iban.length() - 4));
                 tvBalance.setText(formatBalance(account.balance));
                 tvCurrency.setText(getCurrencySymbol(account.currency));
@@ -708,6 +1238,9 @@ public class DashboardActivity extends AppCompatActivity {
         class TransactionViewHolder extends RecyclerView.ViewHolder {
             ImageView ivCategoryIcon;
             TextView tvMerchantName, tvCategory, tvAmount, tvTime;
+            View cardIcon, cardInitials, exchangeIconContainer;
+            TextView tvInitials, tvSecondaryAmount;
+            ImageView ivFlagFrom, ivFlagTo;
 
             TransactionViewHolder(@NonNull View itemView) {
                 super(itemView);
@@ -716,6 +1249,13 @@ public class DashboardActivity extends AppCompatActivity {
                 tvCategory = itemView.findViewById(R.id.tvCategory);
                 tvAmount = itemView.findViewById(R.id.tvAmount);
                 tvTime = itemView.findViewById(R.id.tvTime);
+                cardIcon = itemView.findViewById(R.id.cardIcon);
+                cardInitials = itemView.findViewById(R.id.cardInitials);
+                tvInitials = itemView.findViewById(R.id.tvInitials);
+                tvSecondaryAmount = itemView.findViewById(R.id.tvSecondaryAmount);
+                exchangeIconContainer = itemView.findViewById(R.id.exchangeIconContainer);
+                ivFlagFrom = itemView.findViewById(R.id.ivFlagFrom);
+                ivFlagTo = itemView.findViewById(R.id.ivFlagTo);
             }
 
             void bind(Transaction transaction) {
@@ -723,6 +1263,7 @@ public class DashboardActivity extends AppCompatActivity {
                 tvCategory.setText(transaction.subtitle);
                 tvTime.setText(transaction.time);
 
+                // Afișează suma principală
                 String amountText;
                 if (transaction.amount >= 0) {
                     amountText = "+" + formatBalance(transaction.amount) + " " + getCurrencySymbol(transaction.currency);
@@ -733,10 +1274,62 @@ public class DashboardActivity extends AppCompatActivity {
                 }
                 tvAmount.setText(amountText);
 
-                try {
-                    ivCategoryIcon.setImageResource(transaction.iconRes);
-                } catch (Exception e) {
-                    ivCategoryIcon.setImageResource(R.drawable.ic_shopping);
+                // Afișează suma secundară pentru exchange (semnul opus primarului)
+                if (transaction.isExchange && tvSecondaryAmount != null) {
+                    String secondaryText;
+                    // Dacă primarul e negativ (ai plătit), secundarul e pozitiv (ai primit)
+                    if (transaction.amount < 0) {
+                        secondaryText = "+" + formatBalance(transaction.secondaryAmount) + " " + getCurrencySymbol(transaction.secondaryCurrency);
+                    } else {
+                        secondaryText = "-" + formatBalance(transaction.secondaryAmount) + " " + getCurrencySymbol(transaction.secondaryCurrency);
+                    }
+                    tvSecondaryAmount.setText(secondaryText);
+                    tvSecondaryAmount.setVisibility(View.VISIBLE);
+                } else if (tvSecondaryAmount != null) {
+                    tvSecondaryAmount.setVisibility(View.GONE);
+                }
+
+                // Alege tipul de icon: exchange cu steaguri, inițiale, sau iconița normală
+                if (transaction.isExchange && exchangeIconContainer != null) {
+                    // Exchange - afișează steagurile suprapuse
+                    cardIcon.setVisibility(View.GONE);
+                    cardInitials.setVisibility(View.GONE);
+                    exchangeIconContainer.setVisibility(View.VISIBLE);
+
+                    // Setează steagurile pentru monedele implicate
+                    ivFlagFrom.setImageResource(getFlagForCurrency(transaction.fromCurrency));
+                    ivFlagTo.setImageResource(getFlagForCurrency(transaction.toCurrency));
+                } else if (transaction.showInitials && cardInitials != null && cardIcon != null) {
+                    // Transfer către persoană - afișează cercul cu inițiale
+                    cardIcon.setVisibility(View.GONE);
+                    cardInitials.setVisibility(View.VISIBLE);
+                    if (exchangeIconContainer != null) exchangeIconContainer.setVisibility(View.GONE);
+                    tvInitials.setText(transaction.initials);
+                } else if (cardIcon != null) {
+                    // Iconița normală
+                    cardIcon.setVisibility(View.VISIBLE);
+                    if (cardInitials != null) cardInitials.setVisibility(View.GONE);
+                    if (exchangeIconContainer != null) exchangeIconContainer.setVisibility(View.GONE);
+                    try {
+                        ivCategoryIcon.setImageResource(transaction.iconRes);
+                    } catch (Exception e) {
+                        ivCategoryIcon.setImageResource(R.drawable.ic_shopping);
+                    }
+                }
+            }
+
+            private int getFlagForCurrency(String currency) {
+                if (currency == null) return R.drawable.flag_ro;
+                switch (currency.trim().toUpperCase()) {
+                    case "EUR":
+                        return R.drawable.flag_eur;
+                    case "USD":
+                        return R.drawable.flag_usd;
+                    case "GBP":
+                        return R.drawable.flag_gbp;
+                    case "RON":
+                    default:
+                        return R.drawable.flag_ro;
                 }
             }
         }

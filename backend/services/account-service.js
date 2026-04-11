@@ -199,6 +199,35 @@ async function exchangeCurrency(userId, fromAccountId, toAccountId, amount, exch
     await updateBalance(fromAccountId, newFromBalance);
     await updateBalance(toAccountId, newToBalance);
 
+    // Genereaza referinta unica pentru tranzactie
+    const reference = `EX${Date.now()}${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    // Insereaza in tabela transfers pentru a aparea in istoric
+    const { error: transferError } = await supabase
+        .from('transfers')
+        .insert({
+            from_account_id: fromAccountId,
+            to_account_id: toAccountId,
+            to_iban: toAccount.iban,
+            beneficiary_name: 'Schimb valutar',
+            amount: convertedAmount,
+            currency: toAccount.currency.trim(),
+            original_amount: amount,
+            original_currency: fromAccount.currency.trim(),
+            exchange_rate: exchangeRate,
+            reference: reference,
+            description: `Schimb ${fromAccount.currency.trim()} → ${toAccount.currency.trim()}`,
+            status: 'COMPLETED',
+            transfer_type: 'INTERNAL',
+            scheduled_date: new Date().toISOString().split('T')[0],
+            completed_at: new Date().toISOString()
+        });
+
+    if (transferError) {
+        console.error('Error creating transfer record:', transferError);
+        // Nu aruncam eroare, schimbul a fost efectuat deja
+    }
+
     return {
         fromAccount: {
             account_id: fromAccount.account_id,

@@ -3,16 +3,12 @@ package com.example.swiftbank.activities.register;
 import android.content.Intent;
 import android.os.Bundle;
 
-import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.example.swiftbank.R;
 import com.example.swiftbank.activities.welcome.WelcomeActivity;
+import com.example.swiftbank.utils.SwiftBankDialog;
 
 public abstract class BackActivity extends AppCompatActivity {
 
@@ -29,11 +25,13 @@ public abstract class BackActivity extends AppCompatActivity {
     }
 
     protected void showExitConfirmation() {
-        new AlertDialog.Builder(this)
+        new SwiftBankDialog(this)
+                .setIcon(R.drawable.ic_block)
                 .setTitle("Abandonezi înregistrarea?")
                 .setMessage("Progresul va fi pierdut.")
-                .setPositiveButton("Da", (d, w) -> goToWelcome())
-                .setNegativeButton("Nu", null)
+                .setPrimaryButton("Nu, continuă", null)
+                .setSecondaryButton("Da, renunță", v -> goToWelcome())
+                .setCancelable(true)
                 .show();
     }
 

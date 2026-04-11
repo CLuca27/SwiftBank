@@ -37,7 +37,7 @@ public class RegisterPinActivity extends AppCompatActivity {
 
     private static final String TAG = "RegisterPinActivity";
     private static final int PIN_LENGTH = 6;
-    private static final int ANIMATION_DURATION = 200;
+    private static final int ANIMATION_DURATION = 300;
 
     private enum PinState {
         CREATE,
@@ -63,6 +63,8 @@ public class RegisterPinActivity extends AppCompatActivity {
     private StringBuilder currentPin = new StringBuilder();
     private String firstPin = "";
     private boolean isAnimating = false;
+    private boolean isLoading = false;
+    private AnimatorSet bouncingAnimator;
 
     // Data
     private RegistrationData registrationData;
@@ -359,17 +361,21 @@ public class RegisterPinActivity extends AppCompatActivity {
     private void animateSuccess(Runnable onComplete) {
         isAnimating = true;
 
-        // Pulsează toate dots-urile verde
         AnimatorSet pulseSet = new AnimatorSet();
         for (int i = 0; i < dots.length; i++) {
             View dot = dots[i];
-            ObjectAnimator scaleX = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 1.3f, 1f);
-            ObjectAnimator scaleY = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 1.3f, 1f);
-            scaleX.setStartDelay(i * 50);
-            scaleY.setStartDelay(i * 50);
-            pulseSet.playTogether(scaleX, scaleY);
+
+            ObjectAnimator scaleX = ObjectAnimator.ofFloat(dot, "scaleX", 1f, 1.5f, 1f);
+            ObjectAnimator scaleY = ObjectAnimator.ofFloat(dot, "scaleY", 1f, 1.5f, 1f);
+            ObjectAnimator bounceUp = ObjectAnimator.ofFloat(dot, "translationY", 0f, -20f, 0f);
+
+            scaleX.setStartDelay(i * 70L);
+            scaleY.setStartDelay(i * 70L);
+            bounceUp.setStartDelay(i * 70L);
+
+            pulseSet.playTogether(scaleX, scaleY, bounceUp);
         }
-        pulseSet.setDuration(300);
+        pulseSet.setDuration(400);
 
         pulseSet.addListener(new AnimatorListenerAdapter() {
             @Override
@@ -377,7 +383,7 @@ public class RegisterPinActivity extends AppCompatActivity {
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     isAnimating = false;
                     onComplete.run();
-                }, 200);
+                }, 300);
             }
         });
 
@@ -416,16 +422,16 @@ public class RegisterPinActivity extends AppCompatActivity {
         if (index < 0 || index >= dots.length) return;
 
         View dot = dots[index];
-        dot.setScaleX(0.5f);
-        dot.setScaleY(0.5f);
+        dot.setScaleX(0.3f);
+        dot.setScaleY(0.3f);
 
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(dot, "scaleX", 0.5f, 1.2f, 1f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(dot, "scaleY", 0.5f, 1.2f, 1f);
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(dot, "scaleX", 0.3f, 1.3f, 1f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(dot, "scaleY", 0.3f, 1.3f, 1f);
 
         AnimatorSet animSet = new AnimatorSet();
         animSet.playTogether(scaleX, scaleY);
-        animSet.setDuration(150);
-        animSet.setInterpolator(new OvershootInterpolator());
+        animSet.setDuration(250);
+        animSet.setInterpolator(new OvershootInterpolator(2f));
         animSet.start();
     }
 
@@ -454,12 +460,78 @@ public class RegisterPinActivity extends AppCompatActivity {
     }
 
     private void showLoading(boolean show) {
-        loadingOverlay.setVisibility(show ? View.VISIBLE : View.GONE);
+        isLoading = show;
+        setNumpadEnabled(!show);
+
+        if (show) {
+            startBouncingAnimation();
+        } else {
+            stopBouncingAnimation();
+        }
+    }
+
+    private void setNumpadEnabled(boolean enabled) {
+        for (TextView btn : numpadButtons) {
+            btn.setEnabled(enabled);
+            btn.setAlpha(enabled ? 1f : 0.5f);
+        }
+        btnBackspace.setEnabled(enabled);
+        btnBackspace.setAlpha(enabled ? 1f : 0.5f);
+    }
+
+    private void startBouncingAnimation() {
+        if (bouncingAnimator != null && bouncingAnimator.isRunning()) {
+            return;
+        }
+
+        bouncingAnimator = new AnimatorSet();
+        long duration = 400;
+        long delayBetweenDots = 80;
+
+        for (int i = 0; i < dots.length; i++) {
+            View dot = dots[i];
+
+            ObjectAnimator bounceUp = ObjectAnimator.ofFloat(dot, "translationY", 0f, -30f);
+            bounceUp.setDuration(duration / 2);
+
+            ObjectAnimator bounceDown = ObjectAnimator.ofFloat(dot, "translationY", -30f, 0f);
+            bounceDown.setDuration(duration / 2);
+
+            AnimatorSet dotBounce = new AnimatorSet();
+            dotBounce.playSequentially(bounceUp, bounceDown);
+            dotBounce.setStartDelay(i * delayBetweenDots);
+
+            bouncingAnimator.playTogether(dotBounce);
+        }
+
+        bouncingAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (isLoading) {
+                    bouncingAnimator.setStartDelay(100);
+                    bouncingAnimator.start();
+                }
+            }
+        });
+
+        bouncingAnimator.start();
+    }
+
+    private void stopBouncingAnimation() {
+        if (bouncingAnimator != null) {
+            bouncingAnimator.cancel();
+            bouncingAnimator = null;
+        }
+
+        for (View dot : dots) {
+            dot.setTranslationY(0f);
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopBouncingAnimation();
         if (particlesView != null) {
             particlesView.stopAnimation();
         }

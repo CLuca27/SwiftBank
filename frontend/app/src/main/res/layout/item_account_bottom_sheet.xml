@@ -57,12 +57,12 @@
 
     </LinearLayout>
 
-    <!-- Balance -->
+    <!-- Balance + Currency pe același rând -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:gravity="end"
-        android:orientation="vertical">
+        android:gravity="center_vertical|end"
+        android:orientation="horizontal">
 
         <TextView
             android:id="@+id/tvBalance"
@@ -77,22 +77,22 @@
             android:id="@+id/tvCurrency"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginStart="4dp"
             android:textColor="@color/white_50"
-            android:textSize="12sp"
+            android:textSize="14sp"
             tools:text="lei" />
 
-    </LinearLayout>
+        <!-- Selected Indicator - lângă balance -->
+        <ImageView
+            android:id="@+id/ivSelected"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginStart="8dp"
+            android:src="@drawable/ic_check_circle"
+            android:visibility="gone"
+            app:tint="@color/green_accent"
+            tools:visibility="visible" />
 
-    <!-- Selected Indicator -->
-    <ImageView
-        android:id="@+id/ivSelected"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_marginStart="12dp"
-        android:src="@drawable/ic_check_circle"
-        android:visibility="gone"
-        app:tint="@color/green_accent"
-        tools:visibility="visible" />
+    </LinearLayout>
 
 </LinearLayout>

@@ -4,7 +4,10 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -12,10 +15,12 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.core.splashscreen.SplashScreen;
 
 import com.example.swiftbank.R;
 import com.example.swiftbank.activities.login.LoginPinActivity;
@@ -26,6 +31,7 @@ import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.response.data.RefreshData;
 import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.utils.SwiftBankDialog;
 import com.example.swiftbank.storage.TokenManager;
 import com.example.swiftbank.views.ParticlesView;
 
@@ -37,6 +43,7 @@ public class SplashActivity extends AppCompatActivity {
 
     private static final String TAG = "SplashActivity";
     private static final long MIN_SPLASH_DURATION = 6000;
+    private static final long SYSTEM_SPLASH_DURATION = 1500; // Durata splash-ului Android 12+
 
     private CardView logoCard;
     private TextView appNameText;
@@ -46,10 +53,18 @@ public class SplashActivity extends AppCompatActivity {
 
     private long startTime;
     private Intent nextIntent = null;
+    private boolean keepSplashScreen = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Install splash screen before calling super.onCreate()
+        SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
+
         super.onCreate(savedInstanceState);
+
+        // Configurare splash screen Android 12+
+        setupSplashScreen(splashScreen);
+
         setContentView(R.layout.activity_splash);
 
         // Initialize views
@@ -63,9 +78,53 @@ public class SplashActivity extends AppCompatActivity {
 
         startTime = System.currentTimeMillis();
 
-        // Start animations + check auth
+        // Start animations + check network + auth
         startAnimations();
+        checkNetworkAndAuth();
+    }
+
+    private void setupSplashScreen(SplashScreen splashScreen) {
+        // Păstrează splash-ul vizibil până când flag-ul devine false
+        splashScreen.setKeepOnScreenCondition(() -> keepSplashScreen);
+
+        // După SYSTEM_SPLASH_DURATION, ascunde splash-ul cu animație
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            keepSplashScreen = false;
+        }, SYSTEM_SPLASH_DURATION);
+
+        // Animație de ieșire - fade out simplu și rapid
+        splashScreen.setOnExitAnimationListener(splashScreenView -> {
+            splashScreenView.getView()
+                    .animate()
+                    .alpha(0f)
+                    .setDuration(300)
+                    .withEndAction(splashScreenView::remove)
+                    .start();
+        });
+    }
+
+    private void checkNetworkAndAuth() {
+        if (!isNetworkAvailable()) {
+            SwiftBankDialog.showNoNetworkDialog(this, v -> {
+                // Reset timer și retry
+                startTime = System.currentTimeMillis();
+                checkNetworkAndAuth();
+            });
+            return;
+        }
         checkAuthStatus();
+    }
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+
+        NetworkCapabilities capabilities = cm.getNetworkCapabilities(cm.getActiveNetwork());
+        if (capabilities == null) return false;
+
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET);
     }
 
     private void checkAuthStatus() {
@@ -101,8 +160,10 @@ public class SplashActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<ApiResponse<RefreshData>> call, Throwable t) {
                 Log.e(TAG, "Network error: " + t.getMessage());
-                tokenManager.clearTokens();
-                navigateWithDelay(WelcomeActivity.class);
+                SwiftBankDialog.showServerErrorDialog(SplashActivity.this, v -> {
+                    startTime = System.currentTimeMillis();
+                    checkNetworkAndAuth();
+                });
             }
         });
     }

@@ -1,0 +1,481 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/dark_background"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp">
+
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_button_circular"
+            android:padding="10dp"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="@color/white" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="Schimb valutar"
+            android:textColor="@color/white"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <!-- Content - scrollable -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- SKELETON LOADING -->
+            <LinearLayout
+                android:id="@+id/skeletonContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:visibility="visible">
+
+                <!-- Skeleton Cards Container -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_card_dark"
+                    android:orientation="vertical"
+                    android:padding="4dp">
+
+                    <!-- Skeleton Card 1 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_exchange_card"
+                        android:orientation="horizontal"
+                        android:padding="16dp">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <com.example.swiftbank.views.SkeletonView
+                                android:id="@+id/skeleton1"
+                                android:layout_width="70dp"
+                                android:layout_height="20dp"
+                                app:skeleton_radius="4dp" />
+
+                            <com.example.swiftbank.views.SkeletonView
+                                android:layout_width="90dp"
+                                android:layout_height="14dp"
+                                android:layout_marginTop="8dp"
+                                app:skeleton_radius="4dp" />
+
+                        </LinearLayout>
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginStart="32dp"
+                            app:skeleton_radius="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- Skeleton Direction Arrow -->
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="-20dp">
+
+                        <View
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:layout_gravity="center"
+                            android:background="@drawable/bg_button_circular_dark" />
+
+                    </FrameLayout>
+
+                    <!-- Skeleton Card 2 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_exchange_card"
+                        android:orientation="horizontal"
+                        android:padding="16dp">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <com.example.swiftbank.views.SkeletonView
+                                android:id="@+id/skeleton2"
+                                android:layout_width="60dp"
+                                android:layout_height="20dp"
+                                app:skeleton_radius="4dp" />
+
+                            <com.example.swiftbank.views.SkeletonView
+                                android:layout_width="80dp"
+                                android:layout_height="14dp"
+                                android:layout_marginTop="8dp"
+                                app:skeleton_radius="4dp" />
+
+                        </LinearLayout>
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginStart="32dp"
+                            app:skeleton_radius="8dp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Skeleton Rate -->
+                <com.example.swiftbank.views.SkeletonView
+                    android:id="@+id/skeleton3"
+                    android:layout_width="140dp"
+                    android:layout_height="16dp"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="16dp"
+                    app:skeleton_radius="8dp" />
+
+            </LinearLayout>
+
+            <!-- ACTUAL CONTENT -->
+            <LinearLayout
+                android:id="@+id/contentContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:visibility="gone">
+
+                <!-- Exchange Cards Container -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_card_dark"
+                    android:orientation="vertical"
+                    android:padding="4dp">
+
+                <!-- FROM Account Card -->
+                <LinearLayout
+                    android:id="@+id/cardFrom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_exchange_card"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <!-- Currency Selector -->
+                    <LinearLayout
+                        android:id="@+id/selectorFrom"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:id="@+id/ivFlagFrom"
+                                android:layout_width="28dp"
+                                android:layout_height="20dp"
+                                android:scaleType="centerCrop"
+                                tools:src="@drawable/flag_ro" />
+
+                            <TextView
+                                android:id="@+id/tvCurrencyFrom"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:textColor="@color/white"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                tools:text="RON" />
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_marginStart="4dp"
+                                android:src="@drawable/ic_arrow_down"
+                                app:tint="@color/white_50" />
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvBalanceFrom"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/white_50"
+                            android:textSize="13sp"
+                            tools:text="Sold: 591,60 lei" />
+
+                    </LinearLayout>
+
+                    <!-- Amount + Error -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="end"
+                        android:orientation="vertical">
+
+                        <EditText
+                            android:id="@+id/etAmountFrom"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@null"
+                            android:focusable="true"
+                            android:focusableInTouchMode="true"
+                            android:gravity="end"
+                            android:hint="-0"
+                            android:inputType="numberDecimal"
+                            android:maxLines="1"
+                            android:textColor="@color/white"
+                            android:textColorHint="@color/white_50"
+                            android:textCursorDrawable="@null"
+                            android:textSize="32sp" />
+
+                        <TextView
+                            android:id="@+id/tvErrorFrom"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:text="depășește soldul"
+                            android:textColor="@color/error_red"
+                            android:textSize="12sp"
+                            android:visibility="gone"
+                            tools:visibility="visible" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Direction Arrow -->
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="-20dp">
+
+                    <ImageView
+                        android:id="@+id/btnDirection"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_button_circular_dark"
+                        android:padding="10dp"
+                        android:src="@drawable/ic_arrow_down"
+                        app:tint="@color/white" />
+
+                </FrameLayout>
+
+                <!-- TO Account Card -->
+                <LinearLayout
+                    android:id="@+id/cardTo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_exchange_card"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <!-- Currency Selector -->
+                    <LinearLayout
+                        android:id="@+id/selectorTo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:id="@+id/ivFlagTo"
+                                android:layout_width="28dp"
+                                android:layout_height="20dp"
+                                android:scaleType="centerCrop"
+                                tools:src="@drawable/flag_eur" />
+
+                            <TextView
+                                android:id="@+id/tvCurrencyTo"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:textColor="@color/white"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                tools:text="EUR" />
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_marginStart="4dp"
+                                android:src="@drawable/ic_arrow_down"
+                                app:tint="@color/white_50" />
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvBalanceTo"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/white_50"
+                            android:textSize="13sp"
+                            tools:text="Sold: 0,19 €" />
+
+                    </LinearLayout>
+
+                    <!-- Amount + Error -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="end"
+                        android:orientation="vertical">
+
+                        <EditText
+                            android:id="@+id/etAmountTo"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@null"
+                            android:focusable="true"
+                            android:focusableInTouchMode="true"
+                            android:gravity="end"
+                            android:hint="+0"
+                            android:inputType="numberDecimal"
+                            android:maxLines="1"
+                            android:textColor="@color/green_accent"
+                            android:textColorHint="@color/green_accent_50"
+                            android:textCursorDrawable="@null"
+                            android:textSize="32sp" />
+
+                        <TextView
+                            android:id="@+id/tvErrorTo"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:text="depășește soldul"
+                            android:textColor="@color/error_red"
+                            android:textSize="12sp"
+                            android:visibility="gone"
+                            tools:visibility="visible" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Exchange Rate Info -->
+            <LinearLayout
+                android:id="@+id/rateContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="16dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_flash" />
+
+                <TextView
+                    android:id="@+id/tvExchangeRate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/accent_soft_blue"
+                    android:textSize="13sp"
+                    tools:text="1 RON = 0,20 EUR" />
+
+            </LinearLayout>
+
+            <!-- Spacer -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <!-- Bottom Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Swap Button -->
+                <ImageView
+                    android:id="@+id/btnSwapAccounts"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:background="@drawable/bg_button_white_circular"
+                    android:padding="16dp"
+                    android:src="@drawable/ic_swap"
+                    app:tint="@color/dark_background" />
+
+                <!-- Exchange Button -->
+                <Button
+                    android:id="@+id/btnExchange"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_button_disabled"
+                    android:enabled="false"
+                    android:text="Verifică ordinul"
+                    android:textAllCaps="false"
+                    android:textColor="@color/white_50"
+                    android:textSize="16sp" />
+
+            </LinearLayout>
+
+            </LinearLayout>
+
+        </FrameLayout>
+
+    </ScrollView>
+
+</LinearLayout>

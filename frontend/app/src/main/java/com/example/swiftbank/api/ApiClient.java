@@ -7,7 +7,9 @@ import com.example.swiftbank.api.interceptors.TokenAuthenticator;
 import com.example.swiftbank.api.services.AccountService;
 import com.example.swiftbank.api.services.AuthService;
 import com.example.swiftbank.api.services.PlacesService;
+import com.example.swiftbank.api.services.RatesService;
 import com.example.swiftbank.api.services.TransactionService;
+import com.example.swiftbank.api.services.UserService;
 import com.example.swiftbank.storage.TokenManager;
 import com.example.swiftbank.utils.GsonProvider;
 
@@ -20,7 +22,9 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
 
-    private static final String BASE_URL = "http://16.170.238.26:8618";
+    //Pentru conectare la server: 16.170.238.26
+    //Pentru conectare la server local: 10.0.2.2
+    private static final String BASE_URL = "http://10.0.2.2:8618";
 
     private static Retrofit retrofit = null;
     private static boolean isInitialized = false;
@@ -80,5 +84,13 @@ public class ApiClient {
 
     public static TransactionService getTransactionService() {
         return getRetrofit().create(TransactionService.class);
+    }
+
+    public static UserService getUserService() {
+        return getRetrofit().create(UserService.class);
+    }
+
+    public static RatesService getRatesService() {
+        return getRetrofit().create(RatesService.class);
     }
 }

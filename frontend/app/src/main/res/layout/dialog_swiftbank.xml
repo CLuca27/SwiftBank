@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="32dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardBackgroundColor="#1A1A1A"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- Icon -->
+        <ImageView
+            android:id="@+id/ivDialogIcon"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/bg_dialog_icon"
+            android:padding="14dp"
+            android:src="@drawable/ic_block"
+            app:tint="@color/green_accent" />
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tvDialogTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:text="Titlu"
+            android:textColor="@color/white"
+            android:textSize="20sp" />
+
+        <!-- Message -->
+        <TextView
+            android:id="@+id/tvDialogMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:text="Mesaj"
+            android:textColor="@color/white_70"
+            android:textSize="15sp" />
+
+        <!-- Primary Button -->
+        <Button
+            android:id="@+id/btnDialogPrimary"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/btn_primary"
+            android:fontFamily="sans-serif-medium"
+            android:text="OK"
+            android:textAllCaps="false"
+            android:textColor="@color/green_dark"
+            android:textSize="16sp" />
+
+        <!-- Secondary Button (optional) -->
+        <Button
+            android:id="@+id/btnDialogSecondary"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@android:color/transparent"
+            android:fontFamily="sans-serif-medium"
+            android:text="Anulează"
+            android:textAllCaps="false"
+            android:textColor="@color/white_70"
+            android:textSize="15sp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>
+
+</LinearLayout>

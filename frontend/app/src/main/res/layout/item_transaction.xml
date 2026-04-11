@@ -10,23 +10,96 @@
     android:paddingVertical="12dp"
     android:gravity="center_vertical">
 
-    <!-- Category Icon -->
-    <androidx.cardview.widget.CardView
+    <!-- Icon Container - poate fi iconiță, inițiale, sau steaguri exchange -->
+    <FrameLayout
         android:layout_width="44dp"
-        android:layout_height="44dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="0dp"
-        app:cardBackgroundColor="@color/white_10">
+        android:layout_height="44dp">
 
-        <ImageView
-            android:id="@+id/ivCategoryIcon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center"
-            tools:src="@drawable/ic_shopping"
-            app:tint="@color/white" />
+        <!-- Card pentru iconițe (shopping, transfer, etc) -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardIcon"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/white_10">
 
-    </androidx.cardview.widget.CardView>
+            <ImageView
+                android:id="@+id/ivCategoryIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                tools:src="@drawable/ic_shopping"
+                app:tint="@color/white" />
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Card pentru inițiale (transferuri către persoane) -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardInitials"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:visibility="gone"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/green_accent">
+
+            <TextView
+                android:id="@+id/tvInitials"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="LC" />
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Container pentru exchange (două steaguri suprapuse) -->
+        <FrameLayout
+            android:id="@+id/exchangeIconContainer"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:visibility="gone">
+
+            <!-- Steagul din spate (moneda sursă) - mai sus și la stânga -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="top|start"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="2dp">
+
+                <ImageView
+                    android:id="@+id/ivFlagFrom"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    tools:src="@drawable/flag_ro" />
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Steagul din față (moneda destinație) - mai jos și la dreapta -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="bottom|end"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="4dp">
+
+                <ImageView
+                    android:id="@+id/ivFlagTo"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    tools:src="@drawable/flag_eur" />
+
+            </androidx.cardview.widget.CardView>
+
+        </FrameLayout>
+
+    </FrameLayout>
 
     <!-- Transaction Details -->
     <LinearLayout
@@ -58,13 +131,14 @@
 
     </LinearLayout>
 
-    <!-- Amount -->
+    <!-- Amount Section -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="end"
         android:orientation="vertical">
 
+        <!-- Primary Amount -->
         <TextView
             android:id="@+id/tvAmount"
             android:layout_width="wrap_content"
@@ -74,6 +148,17 @@
             android:textStyle="bold"
             tools:text="-127,50 lei" />
 
+        <!-- Secondary Amount (pentru exchange) -->
+        <TextView
+            android:id="@+id/tvSecondaryAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:textColor="@color/white_50"
+            android:textSize="12sp"
+            tools:text="+25,00 €" />
+
+        <!-- Time -->
         <TextView
             android:id="@+id/tvTime"
             android:layout_width="wrap_content"

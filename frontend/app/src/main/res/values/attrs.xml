@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="SkeletonView">
+        <attr name="skeleton_radius" format="dimension" />
+        <attr name="skeleton_color" format="color" />
+        <attr name="skeleton_shimmer_color" format="color" />
+        <attr name="skeleton_duration" format="integer" />
+    </declare-styleable>
+</resources>
