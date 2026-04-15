@@ -1,6 +1,7 @@
 package com.example.swiftbank.api.services;
 
 import com.example.swiftbank.api.dto.request.CheckRequest;
+import com.example.swiftbank.api.dto.request.LogoutRequest;
 import com.example.swiftbank.api.dto.request.ForgotPinRequest;
 import com.example.swiftbank.api.dto.request.IdentifyRequest;
 import com.example.swiftbank.api.dto.request.LoginRequest;
@@ -45,5 +46,8 @@ public interface AuthService {
 
     @POST("auth/reset-pin")
     Call<ApiResponse<Void>> resetPin(@Body ResetPinRequest request);
+
+    @POST("auth/logout")
+    Call<Void> logout(@Body LogoutRequest request);
 }
 

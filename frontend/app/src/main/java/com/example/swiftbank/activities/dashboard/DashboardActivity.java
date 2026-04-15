@@ -1,11 +1,16 @@
 package com.example.swiftbank.activities.dashboard;
 
+import android.Manifest;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
@@ -21,6 +26,8 @@ import android.widget.Toast;
 
 import com.example.swiftbank.utils.SwiftBankDialog;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -40,9 +47,11 @@ import com.example.swiftbank.api.dto.response.data.TransactionsData;
 import com.example.swiftbank.api.dto.response.data.RatesData;
 import com.example.swiftbank.utils.ErrorParser;
 import com.example.swiftbank.storage.RatesManager;
-import com.example.swiftbank.storage.TokenManager;
+import com.example.swiftbank.storage.AuthTokenManager;
 import com.example.swiftbank.views.ParticlesView;
 import com.example.swiftbank.activities.settings.SettingsActivity;
+import com.example.swiftbank.realtime.RealtimeManager;
+import com.google.gson.JsonObject;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -63,6 +72,22 @@ import java.util.Locale;
 public class DashboardActivity extends AppCompatActivity {
 
     private static final String TAG = "DashboardActivity";
+    private static final String PREFS_NAME = "SwiftBankNotifications";
+    private static final String KEY_PERMISSION_ASKED = "notification_permission_asked";
+
+    // Permission launcher pentru notificări
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (isGranted) {
+                    // Permisiune acordată - înregistrăm device-ul pentru FCM
+                    com.example.swiftbank.storage.FCMTokenManager.getInstance(this).registerDevice();
+                }
+                // Marcăm că am întrebat (indiferent de răspuns)
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                        .edit()
+                        .putBoolean(KEY_PERMISSION_ASKED, true)
+                        .apply();
+            });
 
     // Views
     private View gradientBackground;
@@ -96,6 +121,11 @@ public class DashboardActivity extends AppCompatActivity {
     private List<Object> transactionItems = new ArrayList<>();
     private String userFirstName = "";
     private String userLastName = "";
+    private int currentUserId = -1;
+    private double displayedBalance = 0; // Pentru animația soldului
+
+    // Realtime
+    private RealtimeManager.RealtimeListener realtimeListener;
 
     // Adapters
     private TransactionsAdapter transactionsAdapter;
@@ -111,6 +141,40 @@ public class DashboardActivity extends AppCompatActivity {
         loadProfile();
         loadAccounts();
         loadRates();
+        checkNotificationPermission();
+    }
+
+    private void checkNotificationPermission() {
+        // Doar pentru Android 13+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+
+        // Verifică dacă am întrebat deja
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        if (prefs.getBoolean(KEY_PERMISSION_ASKED, false)) {
+            return;
+        }
+
+        // Verifică dacă permisiunea e deja acordată
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        // Arată dialog explicativ, apoi cere permisiunea
+        new SwiftBankDialog(this)
+                .setIcon(R.drawable.ic_notifications)
+                .setTitle("Activează notificările")
+                .setMessage("Primește alerte instant când:\n\n• Primești bani în cont\n• Efectuezi un transfer\n• Detectăm activitate suspectă")
+                .setPrimaryButton("Activează", v -> {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+                })
+                .setSecondaryButton("Mai târziu", v -> {
+                    // Marcăm că am întrebat
+                    prefs.edit().putBoolean(KEY_PERMISSION_ASKED, true).apply();
+                })
+                .show();
     }
 
     @Override
@@ -260,11 +324,17 @@ public class DashboardActivity extends AppCompatActivity {
         });
 
         btnSend.setOnClickListener(v -> {
-            Toast.makeText(this, "Trimite - Coming soon", Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(this, com.example.swiftbank.activities.transfer.TransferActivity.class));
         });
 
         btnExchange.setOnClickListener(v -> {
-            startActivity(new android.content.Intent(this, com.example.swiftbank.activities.exchange.ExchangeActivity.class));
+            if (accounts.size() < 2) {
+                SwiftBankDialog.showInfoDialog(this,
+                    "Conturi insuficiente",
+                    "Ai nevoie de cel puțin două conturi pentru a muta bani între ele.");
+            } else {
+                startActivity(new android.content.Intent(this, com.example.swiftbank.activities.exchange.ExchangeActivity.class));
+            }
         });
 
         btnMore.setOnClickListener(v -> {
@@ -318,10 +388,16 @@ public class DashboardActivity extends AppCompatActivity {
         rvAccounts.setAdapter(adapter);
 
         LinearLayout btnAddAccount = sheetView.findViewById(R.id.btnAddAccount);
-        btnAddAccount.setOnClickListener(v -> {
-            bottomSheet.dismiss();
-            showAddAccountDialog();
-        });
+
+        // Ascunde butonul dacă ai toate cele 4 conturi (RON, EUR, USD, GBP)
+        if (accounts.size() >= 4) {
+            btnAddAccount.setVisibility(View.GONE);
+        } else {
+            btnAddAccount.setOnClickListener(v -> {
+                bottomSheet.dismiss();
+                showAddAccountDialog();
+            });
+        }
 
         bottomSheet.show();
     }
@@ -370,7 +446,7 @@ public class DashboardActivity extends AppCompatActivity {
         CurrencyOptionsAdapter adapter = new CurrencyOptionsAdapter(availableCurrencies, currency -> {
             // Arată loading state
             tvSheetTitle.setText("Un moment...");
-            tvLoadingMessage.setText("Contul " + currency.name + " e pe drum...");
+            tvLoadingMessage.setText("Contul în " + currency.code + " este pe drum...");
             rvCurrencies.setVisibility(View.GONE);
             loadingContainer.setVisibility(View.VISIBLE);
             bottomSheet.setCancelable(false);
@@ -505,9 +581,13 @@ public class DashboardActivity extends AppCompatActivity {
                             bottomSheet.dismiss();
 
                             if (response.isSuccessful() && response.body() != null) {
-                                Toast.makeText(DashboardActivity.this,
-                                        "Cont " + currency + " creat cu succes!", Toast.LENGTH_SHORT).show();
                                 loadAccounts();
+                                new SwiftBankDialog(DashboardActivity.this)
+                                        .setIcon(R.drawable.ic_check_circle)
+                                        .setTitle("Cont creat")
+                                        .setMessage("Contul în " + currency + " este gata de utilizare!")
+                                        .setPrimaryButton("Perfect", null)
+                                        .show();
                             } else {
                                 ApiErrorResponse error = ErrorParser.parseError(response);
                                 String message = "Nu am putut crea contul";
@@ -559,7 +639,11 @@ public class DashboardActivity extends AppCompatActivity {
                     ProfileData profile = response.body().getData();
                     userFirstName = profile.getFirstName();
                     userLastName = profile.getLastName();
+                    currentUserId = profile.getUserId();
                     updateGreeting();
+
+                    // Setup realtime subscription pentru acest user
+                    setupRealtimeSubscription();
                 }
                 showProfileContent();
             }
@@ -571,6 +655,52 @@ public class DashboardActivity extends AppCompatActivity {
                 showProfileContent();
             }
         });
+    }
+
+    private void setupRealtimeSubscription() {
+        if (currentUserId == -1) return;
+
+        RealtimeManager realtime = RealtimeManager.getInstance();
+
+        // Conectează dacă nu e deja conectat
+        realtime.connect();
+
+        // Creează listener pentru schimbări în conturi
+        // Când balanța se schimbă, înseamnă că a avut loc o tranzacție
+        // Refresh atât conturile cât și lista de tranzacții
+        realtimeListener = new RealtimeManager.RealtimeListener() {
+            @Override
+            public void onInsert(String table, JsonObject newRecord) {
+                // Cont nou adăugat - reîncarcă totul
+                runOnUiThread(() -> {
+                    loadAccounts();
+                });
+            }
+
+            @Override
+            public void onUpdate(String table, JsonObject oldRecord, JsonObject newRecord) {
+                // Balanță modificată = tranzacție nouă
+                // Reîncarcă conturile și tranzacțiile
+                runOnUiThread(() -> {
+                    loadAccounts();
+                    // Refresh tranzacții pentru contul curent
+                    if (!accounts.isEmpty() && selectedAccountIndex < accounts.size()) {
+                        loadTransactionsForAccount(accounts.get(selectedAccountIndex));
+                    }
+                });
+            }
+
+            @Override
+            public void onDelete(String table, JsonObject oldRecord) {
+                // Cont șters - reîncarcă lista
+                runOnUiThread(() -> {
+                    loadAccounts();
+                });
+            }
+        };
+
+        // Abonează la schimbări pe conturile acestui user
+        realtime.subscribeToUserChanges("accounts", String.valueOf(currentUserId), realtimeListener);
     }
 
     private void showProfileContent() {
@@ -658,6 +788,12 @@ public class DashboardActivity extends AppCompatActivity {
 
     private void showBalanceContent() {
         if (balanceSkeleton != null && balanceSection != null) {
+            // Dacă conținutul e deja vizibil, nu mai rula animația de fade
+            // (pentru a nu întrerupe animația odometrului când revenim de la altă activitate)
+            if (balanceSection.getVisibility() == View.VISIBLE && balanceSection.getAlpha() > 0.9f) {
+                return;
+            }
+
             balanceSkeleton.animate()
                 .alpha(0f)
                 .setDuration(200)
@@ -696,7 +832,8 @@ public class DashboardActivity extends AppCompatActivity {
                             }
 
                             if (transactionsAdapter != null) {
-                                transactionsAdapter.notifyDataSetChanged();
+                                // Animație subtilă de refresh
+                                animateTransactionsRefresh();
                             }
                             updateTransactionsVisibility();
                         }
@@ -793,7 +930,22 @@ public class DashboardActivity extends AppCompatActivity {
             com.example.swiftbank.api.dto.transaction.TransferTransaction transfer =
                 (com.example.swiftbank.api.dto.transaction.TransferTransaction) t;
 
-            // Verifică dacă e schimb valutar
+            // Prioritate 1: Orice transfer cu beneficiar valid - afișează inițiale
+            String beneficiary = transfer.getBeneficiaryName();
+            if (beneficiary != null && !beneficiary.isEmpty() && !beneficiary.equals("Schimb valutar")) {
+                String initials = getInitials(beneficiary);
+                return Transaction.withInitials(
+                    t.getTitle(),
+                    t.getSubtitle(),
+                    t.getAmount(),
+                    currency,
+                    time,
+                    iconRes,
+                    initials
+                );
+            }
+
+            // Prioritate 2: Schimb valutar (fără beneficiar sau "Schimb valutar")
             if (transfer.hasCurrencyConversion()) {
                 // Exchange transaction - suma principală în moneda contului, secundară în cealaltă
                 Double origAmount = transfer.getOriginalAmount();
@@ -839,22 +991,6 @@ public class DashboardActivity extends AppCompatActivity {
                         secondaryCurrency,
                         fromCurrency,
                         toCurrency
-                    );
-                }
-            } else if (!transfer.isInternal()) {
-                // Transfer către altă persoană (EXTERNAL) - afișează inițiale
-                // Transferurile INTERNAL (între conturile proprii) vor folosi săgețile
-                String beneficiary = transfer.getBeneficiaryName();
-                if (beneficiary != null && !beneficiary.isEmpty() && !beneficiary.equals("Schimb valutar")) {
-                    String initials = getInitials(beneficiary);
-                    return Transaction.withInitials(
-                        t.getTitle(),
-                        t.getSubtitle(),
-                        t.getAmount(),
-                        currency,
-                        time,
-                        iconRes,
-                        initials
                     );
                 }
             }
@@ -918,14 +1054,64 @@ public class DashboardActivity extends AppCompatActivity {
         // Update account type label
         tvAccountType.setText(getAccountTypeName(account.type) + " · " + account.currency);
 
-        // Update balance
-        tvTotalBalance.setText(formatBalance(account.balance));
+        // Update balance with animation
+        animateBalanceChange(account.balance);
 
         // Update currency label
         tvCurrencyLabel.setText(getCurrencySymbol(account.currency));
 
         // Update gradient based on currency
         updateGradientForCurrency(account.currency);
+    }
+
+    private void animateBalanceChange(double newBalance) {
+        // Dacă valoarea e aceeași, nu anima
+        if (Math.abs(newBalance - displayedBalance) < 0.01) {
+            return;
+        }
+
+        // Dacă diferența e enormă (> 1 milion), setează direct pentru a evita animații prea lungi
+        if (Math.abs(newBalance - displayedBalance) > 1000000) {
+            displayedBalance = newBalance;
+            tvTotalBalance.setText(formatBalance(newBalance));
+            return;
+        }
+
+        // Animație de la valoarea veche la cea nouă
+        ValueAnimator animator = ValueAnimator.ofFloat((float) displayedBalance, (float) newBalance);
+        animator.setDuration(600); // 600ms pentru o animație smooth
+        animator.setInterpolator(new AccelerateDecelerateInterpolator());
+
+        animator.addUpdateListener(animation -> {
+            float animatedValue = (float) animation.getAnimatedValue();
+            tvTotalBalance.setText(formatBalance(animatedValue));
+        });
+
+        animator.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(android.animation.Animator animation) {
+                displayedBalance = newBalance;
+                // Setează valoarea finală exactă pentru a evita erori de rotunjire
+                tvTotalBalance.setText(formatBalance(newBalance));
+            }
+        });
+
+        animator.start();
+    }
+
+    private void animateTransactionsRefresh() {
+        // Fade out rapid, actualizează, fade in
+        rvTransactions.animate()
+            .alpha(0.3f)
+            .setDuration(150)
+            .withEndAction(() -> {
+                transactionsAdapter.notifyDataSetChanged();
+                rvTransactions.animate()
+                    .alpha(1f)
+                    .setDuration(200)
+                    .start();
+            })
+            .start();
     }
 
     private void updateGradientForCurrency(String currency) {
@@ -1019,8 +1205,21 @@ public class DashboardActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        // Reset pentru ca animația soldului să ruleze din nou la revenire
+        displayedBalance = 0;
         if (particlesView != null) {
             particlesView.stopAnimation();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        // Cleanup realtime subscription
+        if (realtimeListener != null && currentUserId != -1) {
+            RealtimeManager realtime = RealtimeManager.getInstance();
+            realtime.unsubscribeFromUserChanges("accounts", String.valueOf(currentUserId), realtimeListener);
         }
     }
 

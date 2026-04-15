@@ -10,7 +10,7 @@
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardBackgroundColor="#1A1A1A"
+        app:cardBackgroundColor="@color/card_background"
         app:cardCornerRadius="20dp"
         app:cardElevation="8dp">
 
@@ -40,7 +40,7 @@
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
             android:text="Titlu"
-            android:textColor="@color/white"
+            android:textColor="@color/text_primary"
             android:textSize="20sp" />
 
         <!-- Message -->
@@ -52,7 +52,7 @@
             android:gravity="center"
             android:lineSpacingExtra="4dp"
             android:text="Mesaj"
-            android:textColor="@color/white_70"
+            android:textColor="@color/text_secondary"
             android:textSize="15sp" />
 
         <!-- Primary Button -->
@@ -78,7 +78,7 @@
             android:fontFamily="sans-serif-medium"
             android:text="Anulează"
             android:textAllCaps="false"
-            android:textColor="@color/white_70"
+            android:textColor="@color/text_secondary"
             android:textSize="15sp"
             android:visibility="gone" />
 

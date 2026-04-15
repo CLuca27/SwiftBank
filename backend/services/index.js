@@ -5,6 +5,8 @@ import authService from './auth-service.js'
 import ratesService from './rates-service.js'
 import transactionService from './transaction-service.js'
 import accountService from './account-service.js'
+import transferService from './transfer-service.js'
+import notificationService from './notification-service.js'
 
 
 export default {
@@ -14,5 +16,7 @@ export default {
     authService,
     ratesService,
     transactionService,
-    accountService
+    accountService,
+    transferService,
+    notificationService
 }

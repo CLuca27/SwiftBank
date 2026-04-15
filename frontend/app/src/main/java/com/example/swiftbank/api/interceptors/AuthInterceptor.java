@@ -2,7 +2,7 @@ package com.example.swiftbank.api.interceptors;
 
 import androidx.annotation.NonNull;
 
-import com.example.swiftbank.storage.TokenManager;
+import com.example.swiftbank.storage.AuthTokenManager;
 
 import java.io.IOException;
 
@@ -12,9 +12,9 @@ import okhttp3.Response;
 
 public class AuthInterceptor implements Interceptor {
 
-    private final TokenManager tokenManager;
+    private final AuthTokenManager tokenManager;
 
-    public AuthInterceptor(TokenManager tokenManager) {
+    public AuthInterceptor(AuthTokenManager tokenManager) {
         this.tokenManager = tokenManager;
     }
 

@@ -24,14 +24,14 @@
             android:background="@drawable/bg_button_circular"
             android:padding="10dp"
             android:src="@drawable/ic_arrow_back"
-            app:tint="@color/white" />
+            app:tint="@color/text_primary" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:text="Setări"
-            android:textColor="@color/white"
+            android:textColor="@color/text_primary"
             android:textSize="20sp"
             android:textStyle="bold" />
 
@@ -79,7 +79,7 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/ic_fingerprint"
-                        app:tint="@color/white" />
+                        app:tint="@color/text_primary" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -92,14 +92,14 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Autentificare biometrică"
-                            android:textColor="@color/white"
+                            android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Folosește amprenta pentru a te autentifica"
-                            android:textColor="@color/white_50"
+                            android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
 
                     </LinearLayout>
@@ -117,7 +117,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginStart="56dp"
-                    android:background="@color/white_10" />
+                    android:background="@color/divider_color" />
 
                 <!-- Change PIN -->
                 <LinearLayout
@@ -133,7 +133,7 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/ic_lock"
-                        app:tint="@color/white" />
+                        app:tint="@color/text_primary" />
 
                     <TextView
                         android:layout_width="0dp"
@@ -141,14 +141,14 @@
                         android:layout_marginStart="16dp"
                         android:layout_weight="1"
                         android:text="Schimbă PIN-ul"
-                        android:textColor="@color/white"
+                        android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:src="@drawable/ic_chevron_right"
-                        app:tint="@color/white_50" />
+                        app:tint="@color/text_hint" />
 
                 </LinearLayout>
 
@@ -186,7 +186,7 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/ic_notifications"
-                        app:tint="@color/white" />
+                        app:tint="@color/text_primary" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -199,14 +199,14 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Notificări tranzacții"
-                            android:textColor="@color/white"
+                            android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Primește notificări când trimiți sau primești bani"
-                            android:textColor="@color/white_50"
+                            android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
 
                     </LinearLayout>
@@ -254,7 +254,7 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/ic_person"
-                        app:tint="@color/white" />
+                        app:tint="@color/text_primary" />
 
                     <TextView
                         android:layout_width="0dp"
@@ -262,14 +262,14 @@
                         android:layout_marginStart="16dp"
                         android:layout_weight="1"
                         android:text="Editează profilul"
-                        android:textColor="@color/white"
+                        android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:src="@drawable/ic_chevron_right"
-                        app:tint="@color/white_50" />
+                        app:tint="@color/text_hint" />
 
                 </LinearLayout>
 
@@ -307,7 +307,7 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/ic_palette"
-                        app:tint="@color/white" />
+                        app:tint="@color/text_primary" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -320,7 +320,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Temă"
-                            android:textColor="@color/white"
+                            android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
                         <TextView
@@ -328,7 +328,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Întunecată"
-                            android:textColor="@color/white_50"
+                            android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
 
                     </LinearLayout>
@@ -337,7 +337,7 @@
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:src="@drawable/ic_chevron_right"
-                        app:tint="@color/white_50" />
+                        app:tint="@color/text_hint" />
 
                 </LinearLayout>
 
@@ -374,7 +374,7 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/ic_info"
-                        app:tint="@color/white" />
+                        app:tint="@color/text_primary" />
 
                     <TextView
                         android:layout_width="0dp"
@@ -382,7 +382,7 @@
                         android:layout_marginStart="16dp"
                         android:layout_weight="1"
                         android:text="Versiune aplicație"
-                        android:textColor="@color/white"
+                        android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
                     <TextView
@@ -390,7 +390,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="1.0.0"
-                        android:textColor="@color/white_50"
+                        android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
                 </LinearLayout>
@@ -399,7 +399,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginStart="56dp"
-                    android:background="@color/white_10" />
+                    android:background="@color/divider_color" />
 
                 <!-- Terms -->
                 <LinearLayout
@@ -415,7 +415,7 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/ic_document"
-                        app:tint="@color/white" />
+                        app:tint="@color/text_primary" />
 
                     <TextView
                         android:layout_width="0dp"
@@ -423,14 +423,14 @@
                         android:layout_marginStart="16dp"
                         android:layout_weight="1"
                         android:text="Termeni și condiții"
-                        android:textColor="@color/white"
+                        android:textColor="@color/text_primary"
                         android:textSize="16sp" />
 
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:src="@drawable/ic_chevron_right"
-                        app:tint="@color/white_50" />
+                        app:tint="@color/text_hint" />
 
                 </LinearLayout>
 

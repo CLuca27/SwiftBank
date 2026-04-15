@@ -23,7 +23,7 @@
         android:layout_marginBottom="8dp"
         android:paddingHorizontal="20dp"
         android:text="Conturile tale"
-        android:textColor="@color/white"
+        android:textColor="@color/text_primary"
         android:textSize="20sp"
         android:textStyle="bold" />
 

@@ -41,7 +41,7 @@
             android:id="@+id/tvAccountName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/white"
+            android:textColor="@color/text_primary"
             android:textSize="16sp"
             android:textStyle="bold"
             tools:text="Personal · RON" />
@@ -51,7 +51,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:textColor="@color/white_50"
+            android:textColor="@color/text_secondary"
             android:textSize="12sp"
             tools:text="•••• 6789" />
 
@@ -68,7 +68,7 @@
             android:id="@+id/tvBalance"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/white"
+            android:textColor="@color/text_primary"
             android:textSize="16sp"
             android:textStyle="bold"
             tools:text="12.450,75" />
@@ -78,7 +78,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
-            android:textColor="@color/white_50"
+            android:textColor="@color/text_secondary"
             android:textSize="14sp"
             tools:text="lei" />
 

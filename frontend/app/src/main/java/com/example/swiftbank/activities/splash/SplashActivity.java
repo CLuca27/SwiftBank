@@ -32,7 +32,7 @@ import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.response.data.RefreshData;
 import com.example.swiftbank.utils.ErrorParser;
 import com.example.swiftbank.utils.SwiftBankDialog;
-import com.example.swiftbank.storage.TokenManager;
+import com.example.swiftbank.storage.AuthTokenManager;
 import com.example.swiftbank.views.ParticlesView;
 
 import retrofit2.Call;
@@ -128,17 +128,17 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void checkAuthStatus() {
-        TokenManager tokenManager = TokenManager.getInstance(this);
+        AuthTokenManager authTokenManager = AuthTokenManager.getInstance(this);
 
         // Nu există refresh token → Welcome
-        if (!tokenManager.hasRefreshToken()) {
+        if (!authTokenManager.hasRefreshToken()) {
             Log.d(TAG, "No refresh token found");
             navigateWithDelay(WelcomeActivity.class);
             return;
         }
 
         // Există refresh token → încearcă refresh
-        String refreshToken = tokenManager.getRefreshToken();
+        String refreshToken = authTokenManager.getRefreshToken();
         String deviceId = Settings.Secure.getString(
                 getContentResolver(),
                 Settings.Secure.ANDROID_ID
@@ -151,9 +151,9 @@ public class SplashActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<ApiResponse<RefreshData>> call, Response<ApiResponse<RefreshData>> response) {
                 if (response.isSuccessful() && response.body() != null){
-                    handleRefreshSuccess(response.body(), tokenManager);
+                    handleRefreshSuccess(response.body(), authTokenManager);
                 } else {
-                    handleRefreshError(response, tokenManager);
+                    handleRefreshError(response, authTokenManager);
                 }
             }
 
@@ -168,11 +168,11 @@ public class SplashActivity extends AppCompatActivity {
         });
     }
 
-    private void handleRefreshSuccess(ApiResponse<RefreshData> response, TokenManager tokenManager) {
+    private void handleRefreshSuccess(ApiResponse<RefreshData> response, AuthTokenManager authTokenManager) {
         RefreshData data = response.getData();
 
         if (data != null) {
-            tokenManager.saveTokens(data.getAccessToken(), data.getRefreshToken());
+            authTokenManager.saveTokens(data.getAccessToken(), data.getRefreshToken());
             Log.d(TAG, "Refresh successful, tokens saved");
 
             // Navighează la LoginPinActivity cu datele user-ului
@@ -204,7 +204,7 @@ public class SplashActivity extends AppCompatActivity {
         }
     }
 
-    private void handleRefreshError(Response<ApiResponse<RefreshData>> response, TokenManager tokenManager) {
+    private void handleRefreshError(Response<ApiResponse<RefreshData>> response, AuthTokenManager authTokenManager) {
         Log.d(TAG, "Refresh failed with code: " + response.code());
 
         ApiErrorResponse error = ErrorParser.parseError(response);
@@ -222,7 +222,7 @@ public class SplashActivity extends AppCompatActivity {
         }
 
         // Orice altă eroare - clear tokens și Welcome
-        tokenManager.clearTokens();
+        authTokenManager.clearTokens();
         navigateWithDelay(WelcomeActivity.class);
     }
 

@@ -27,7 +27,9 @@ import com.example.swiftbank.api.dto.response.data.AccountsData;
 import com.example.swiftbank.api.dto.response.data.ExchangeRateData;
 import com.example.swiftbank.api.dto.response.data.ExchangeResultData;
 import com.example.swiftbank.storage.RatesManager;
+import com.example.swiftbank.utils.BiometricHelper;
 import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.utils.PinConfirmDialog;
 import com.example.swiftbank.utils.SwiftBankDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
@@ -148,7 +150,7 @@ public class ExchangeActivity extends AppCompatActivity {
         btnDirection.setOnClickListener(v -> toggleDirection());
         btnSwapAccounts.setOnClickListener(v -> swapAccounts());
 
-        btnExchange.setOnClickListener(v -> executeExchange());
+        btnExchange.setOnClickListener(v -> initiateExchange());
 
         // Focus listeners pentru a ști care câmp e activ
         etAmountFrom.setOnFocusChangeListener((v, hasFocus) -> {
@@ -492,15 +494,16 @@ public class ExchangeActivity extends AppCompatActivity {
                         toAccount = accounts.get(1);
                         updateAccountDisplays();
                         loadExchangeRate();
-                        showContent(); // Arată conținutul real
-                    } else if (accounts.size() == 1) {
-                        fromAccount = accounts.get(0);
-                        updateAccountDisplays();
                         showContent();
-                        SwiftBankDialog.showErrorDialog(ExchangeActivity.this,
-                            "Ai nevoie de cel puțin două conturi pentru schimb valutar.");
                     } else {
-                        showContent();
+                        // Nu ai suficiente conturi - închide activity-ul
+                        new SwiftBankDialog(ExchangeActivity.this)
+                            .setIcon(R.drawable.ic_info)
+                            .setTitle("Conturi insuficiente")
+                            .setMessage("Ai nevoie de cel puțin două conturi pentru a muta bani între ele.")
+                            .setPrimaryButton("Am înțeles", v -> finish())
+                            .setCancelable(false)
+                            .show();
                     }
                 } else {
                     showContent();
@@ -643,7 +646,7 @@ public class ExchangeActivity extends AppCompatActivity {
         bottomSheet.show();
     }
 
-    private void executeExchange() {
+    private void initiateExchange() {
         double sendAmount = getSendAmount();
         if (sendAmount <= 0 || fromAccount == null || toAccount == null) return;
 
@@ -662,6 +665,63 @@ public class ExchangeActivity extends AppCompatActivity {
                     balanceFormat.format(sourceAccount.getBalance())));
             return;
         }
+
+        String amountStr = balanceFormat.format(sendAmount) + " " + sourceAccount.getCurrency();
+        String destStr = destAccount.getCurrency();
+
+        // Verifică dacă trebuie să folosim biometrie
+        if (BiometricHelper.shouldUseBiometric(this)) {
+            BiometricHelper.authenticate(this, "Confirmă mutarea",
+                    String.format("Mută %s → %s", amountStr, destStr),
+                    new BiometricHelper.BiometricCallback() {
+                        @Override
+                        public void onSuccess() {
+                            executeExchange();
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            if (isFinishing() || isDestroyed()) return;
+                            SwiftBankDialog.showErrorDialog(ExchangeActivity.this,
+                                    "Autentificare eșuată", error);
+                        }
+
+                        @Override
+                        public void onCancel() {
+                            showPinConfirmation(amountStr, destStr);
+                        }
+                    });
+        } else {
+            showPinConfirmation(amountStr, destStr);
+        }
+    }
+
+    private void showPinConfirmation(String amountStr, String destStr) {
+        new PinConfirmDialog(
+                this,
+                "Confirmă mutarea",
+                String.format("Introdu PIN-ul pentru a muta %s → %s", amountStr, destStr),
+                new PinConfirmDialog.PinCallback() {
+                    @Override
+                    public void onPinConfirmed() {
+                        executeExchange();
+                    }
+
+                    @Override
+                    public void onCancelled() {
+                        // Utilizatorul a anulat - nu facem nimic
+                    }
+                }
+        ).show();
+    }
+
+    private void executeExchange() {
+        double sendAmount = getSendAmount();
+        if (sendAmount <= 0 || fromAccount == null || toAccount == null) return;
+
+        // Determină contul sursă și destinație bazat pe direcție
+        AccountData sourceAccount = isDirectionDown ? fromAccount : toAccount;
+        AccountData destAccount = isDirectionDown ? toAccount : fromAccount;
 
         isLoading = true;
         btnExchange.setText("Se procesează...");
@@ -682,14 +742,14 @@ public class ExchangeActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     ExchangeResultData result = response.body().getData();
 
-                    String message = String.format("Ai schimbat %.2f %s în %.2f %s",
+                    String message = String.format("Ai mutat %.2f %s → %.2f %s",
                         Math.abs(result.getFrom().getAmount()),
                         result.getFrom().getCurrency(),
                         result.getTo().getAmount(),
                         result.getTo().getCurrency());
 
                     SwiftBankDialog.showSuccessDialog(ExchangeActivity.this,
-                        "Schimb reușit!",
+                        "Banii au fost mutați!",
                         message,
                         v -> finish());
                 } else {

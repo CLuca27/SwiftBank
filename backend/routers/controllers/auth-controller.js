@@ -707,47 +707,61 @@ async function login(req, res) {
 
 async function logout(req, res) {
     try {
-        const { refresh_token } = req.body;
-        
-        if (!refresh_token) {  
+        const { refresh_token, device_id } = req.body;
+
+        if (!refresh_token) {
             console.log("Lipsește token-ul");
             return res.sendStatus(204);
         }
-        
+
         let decoded;
         try {
             decoded = jwt.verify(refresh_token, process.env.JWT_REFRESH_SECRET);
-        } catch (err) { 
+        } catch (err) {
             console.log(err);
             return res.sendStatus(204);
         }
-        
+
+        const userId = decoded.user_id;
+
         const { data: storedToken } = await config.supabase
             .from('refresh_tokens')
             .select('*')
-            .eq('user_id', decoded.user_id)
+            .eq('user_id', userId)
             .maybeSingle();
-        
-        if (!storedToken) { 
+
+        if (!storedToken) {
             console.log("Nu există token");
             return res.sendStatus(204);
         }
-        
+
         const isMatch = await services.authService.cryptoCompare(refresh_token, storedToken.token_hash);
 
         if (isMatch) {
+            // Șterge refresh token
             await config.supabase
                 .from('refresh_tokens')
                 .delete()
                 .eq('token_id', storedToken.token_id);
-            
-            console.log("Token-ul a fost șters!");
+
+            console.log("Refresh token șters!");
+
+            // Șterge FCM token dacă avem device_id
+            if (device_id) {
+                await config.supabase
+                    .from('fcm_tokens')
+                    .delete()
+                    .eq('user_id', userId)
+                    .eq('device_id', device_id);
+
+                console.log("FCM token șters pentru device:", device_id);
+            }
         } else {
             console.log("Token-urile nu coincid!");
         }
-        
+
         return res.sendStatus(204);
-        
+
     } catch (error) {
         console.error('Eroare logout:', error);
         return res.sendStatus(204);

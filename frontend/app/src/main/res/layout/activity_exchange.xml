@@ -25,14 +25,14 @@
             android:background="@drawable/bg_button_circular"
             android:padding="10dp"
             android:src="@drawable/ic_arrow_back"
-            app:tint="@color/white" />
+            app:tint="@color/text_primary" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:text="Schimb valutar"
-            android:textColor="@color/white"
+            android:text="Mută bani"
+            android:textColor="@color/text_primary"
             android:textSize="20sp"
             android:textStyle="bold" />
 
@@ -221,7 +221,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="8dp"
-                                android:textColor="@color/white"
+                                android:textColor="@color/text_primary"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
                                 tools:text="RON" />
@@ -231,7 +231,7 @@
                                 android:layout_height="20dp"
                                 android:layout_marginStart="4dp"
                                 android:src="@drawable/ic_arrow_down"
-                                app:tint="@color/white_50" />
+                                app:tint="@color/text_hint" />
 
                         </LinearLayout>
 
@@ -240,7 +240,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:textColor="@color/white_50"
+                            android:textColor="@color/text_secondary"
                             android:textSize="13sp"
                             tools:text="Sold: 591,60 lei" />
 
@@ -265,7 +265,7 @@
                             android:hint="-0"
                             android:inputType="numberDecimal"
                             android:maxLines="1"
-                            android:textColor="@color/white"
+                            android:textColor="@color/text_primary"
                             android:textColorHint="@color/white_50"
                             android:textCursorDrawable="@null"
                             android:textSize="32sp" />
@@ -299,7 +299,7 @@
                         android:background="@drawable/bg_button_circular_dark"
                         android:padding="10dp"
                         android:src="@drawable/ic_arrow_down"
-                        app:tint="@color/white" />
+                        app:tint="@color/text_primary" />
 
                 </FrameLayout>
 
@@ -338,7 +338,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="8dp"
-                                android:textColor="@color/white"
+                                android:textColor="@color/text_primary"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
                                 tools:text="EUR" />
@@ -348,7 +348,7 @@
                                 android:layout_height="20dp"
                                 android:layout_marginStart="4dp"
                                 android:src="@drawable/ic_arrow_down"
-                                app:tint="@color/white_50" />
+                                app:tint="@color/text_hint" />
 
                         </LinearLayout>
 
@@ -357,7 +357,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:textColor="@color/white_50"
+                            android:textColor="@color/text_secondary"
                             android:textSize="13sp"
                             tools:text="Sold: 0,19 €" />
 
@@ -467,7 +467,7 @@
                     android:enabled="false"
                     android:text="Verifică ordinul"
                     android:textAllCaps="false"
-                    android:textColor="@color/white_50"
+                    android:textColor="@color/text_secondary"
                     android:textSize="16sp" />
 
             </LinearLayout>

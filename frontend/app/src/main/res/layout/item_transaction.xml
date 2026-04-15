@@ -30,7 +30,7 @@
                 android:layout_height="24dp"
                 android:layout_gravity="center"
                 tools:src="@drawable/ic_shopping"
-                app:tint="@color/white" />
+                app:tint="@color/text_secondary" />
 
         </androidx.cardview.widget.CardView>
 
@@ -49,7 +49,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:textColor="@color/white"
+                android:textColor="@color/text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 tools:text="LC" />
@@ -115,7 +115,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="@color/white"
+            android:textColor="@color/text_primary"
             android:textSize="15sp"
             android:textStyle="bold"
             tools:text="Kaufland" />
@@ -125,7 +125,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:textColor="@color/white_60"
+            android:textColor="@color/text_secondary"
             android:textSize="13sp"
             tools:text="Cumpărături" />
 
@@ -143,7 +143,7 @@
             android:id="@+id/tvAmount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/white"
+            android:textColor="@color/text_primary"
             android:textSize="15sp"
             android:textStyle="bold"
             tools:text="-127,50 lei" />
@@ -154,7 +154,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:visibility="gone"
-            android:textColor="@color/white_50"
+            android:textColor="@color/text_secondary"
             android:textSize="12sp"
             tools:text="+25,00 €" />
 
@@ -164,7 +164,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:textColor="@color/white_40"
+            android:textColor="@color/text_hint"
             android:textSize="12sp"
             tools:text="14:32" />
 

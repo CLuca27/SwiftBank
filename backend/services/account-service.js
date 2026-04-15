@@ -142,7 +142,7 @@ async function getAccountById(accountId) {
 }
 
 /**
- * Actualizeaza balanta unui cont
+ * Actualizeaza balanta unui cont (DEPRECATED - folosește adjustBalance pentru operații atomice)
  */
 async function updateBalance(accountId, newBalance) {
     const { data, error } = await supabase
@@ -157,6 +157,36 @@ async function updateBalance(accountId, newBalance) {
     }
 
     return data;
+}
+
+/**
+ * Ajustează balanța unui cont atomic (previne race conditions)
+ * @param accountId - ID-ul contului
+ * @param amount - suma de adăugat (pozitiv) sau scăzut (negativ)
+ * @returns {new_balance, success}
+ */
+async function adjustBalance(accountId, amount) {
+    const { data, error } = await supabase.rpc('adjust_balance', {
+        p_account_id: accountId,
+        p_amount: amount
+    });
+
+    if (error) {
+        console.error('Error adjusting balance:', error);
+        throw error;
+    }
+
+    // RPC returnează un array cu un singur rând
+    const result = data[0];
+
+    if (!result.success) {
+        throw new Error('INSUFFICIENT_FUNDS');
+    }
+
+    return {
+        newBalance: parseFloat(result.new_balance),
+        success: result.success
+    };
 }
 
 /**
@@ -255,5 +285,6 @@ export default {
     verifyAccountOwnership,
     getAccountById,
     updateBalance,
+    adjustBalance,
     exchangeCurrency
 };

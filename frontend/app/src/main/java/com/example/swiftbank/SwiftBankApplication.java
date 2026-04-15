@@ -5,8 +5,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.util.Log;
+
+import androidx.appcompat.app.AppCompatDelegate;
 
 import com.example.swiftbank.activities.welcome.WelcomeActivity;
 import com.example.swiftbank.api.ApiClient;
@@ -31,6 +34,9 @@ public class SwiftBankApplication extends Application {
     public void onCreate() {
         super.onCreate();
 
+        // Aplică tema salvată
+        applyTheme();
+
         // Inițializează ApiClient cu context
         ApiClient.init(this);
 
@@ -44,5 +50,15 @@ public class SwiftBankApplication extends Application {
         }
 
         Log.d(TAG, "Application inițializată");
+    }
+
+    private void applyTheme() {
+        SharedPreferences prefs = getSharedPreferences("SwiftBankSettings", MODE_PRIVATE);
+        String theme = prefs.getString("theme", "dark");
+
+        int nightMode = theme.equals("dark")
+            ? AppCompatDelegate.MODE_NIGHT_YES
+            : AppCompatDelegate.MODE_NIGHT_NO;
+        AppCompatDelegate.setDefaultNightMode(nightMode);
     }
 }

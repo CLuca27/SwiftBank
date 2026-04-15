@@ -19,7 +19,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.swiftbank.R;
 import com.example.swiftbank.activities.dashboard.DashboardActivity;
-import com.example.swiftbank.storage.TokenManager;
+import com.example.swiftbank.storage.AuthTokenManager;
 import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.request.RegisterRequest;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
@@ -335,7 +335,7 @@ public class RegisterPinActivity extends AppCompatActivity {
 
         animateSuccess(() -> {
             // Salvează tokens
-            TokenManager.getInstance(this).saveTokens(
+            AuthTokenManager.getInstance(this).saveTokens(
                     tokenData.getAccessToken(),
                     tokenData.getRefreshToken()
             );

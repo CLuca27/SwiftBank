@@ -9,16 +9,16 @@ import androidx.security.crypto.MasterKey;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
-public class TokenManager {
+public class AuthTokenManager {
 
-    private static TokenManager instance;
+    private static AuthTokenManager instance;
     private static final String PREFS_NAME = "tokens";
     private static final String REFRESH_TOKEN = "REFRESH_TOKEN";
 
     private SharedPreferences prefs;
     private String accessToken;
 
-    private TokenManager(Context context)
+    private AuthTokenManager(Context context)
     {
         Context appContext = context.getApplicationContext();
         try{
@@ -40,10 +40,10 @@ public class TokenManager {
         }
     }
 
-    public static TokenManager getInstance(Context context)
+    public static AuthTokenManager getInstance(Context context)
     {
         if(instance == null)
-            instance = new TokenManager(context);
+            instance = new AuthTokenManager(context);
 
         return instance;
     }
@@ -79,5 +79,9 @@ public class TokenManager {
         return getRefreshToken() != null;
     }
 
-}
+    public boolean hasValidToken() {
+        // User e considerat logat dacă are refresh token
+        return hasRefreshToken();
+    }
 
+}

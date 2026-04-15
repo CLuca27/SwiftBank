@@ -10,7 +10,7 @@ import androidx.annotation.Nullable;
 import com.example.swiftbank.api.dto.request.RefreshRequest;
 import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.response.data.RefreshData;
-import com.example.swiftbank.storage.TokenManager;
+import com.example.swiftbank.storage.AuthTokenManager;
 import com.example.swiftbank.utils.DeviceDetails;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -32,14 +32,14 @@ public class TokenAuthenticator implements Authenticator {
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     private final Context context;
-    private final TokenManager tokenManager;
+    private final AuthTokenManager tokenManager;
     private final String baseUrl;
     private final Gson gson;
 
     // Lock pentru a evita refresh-uri simultane de la mai multe request-uri
     private static final Object LOCK = new Object();
 
-    public TokenAuthenticator(Context context, TokenManager tokenManager, String baseUrl) {
+    public TokenAuthenticator(Context context, AuthTokenManager tokenManager, String baseUrl) {
         this.context = context.getApplicationContext();
         this.tokenManager = tokenManager;
         this.baseUrl = baseUrl;

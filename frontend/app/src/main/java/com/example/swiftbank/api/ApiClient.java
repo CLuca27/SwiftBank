@@ -9,8 +9,9 @@ import com.example.swiftbank.api.services.AuthService;
 import com.example.swiftbank.api.services.PlacesService;
 import com.example.swiftbank.api.services.RatesService;
 import com.example.swiftbank.api.services.TransactionService;
+import com.example.swiftbank.api.services.TransferService;
 import com.example.swiftbank.api.services.UserService;
-import com.example.swiftbank.storage.TokenManager;
+import com.example.swiftbank.storage.AuthTokenManager;
 import com.example.swiftbank.utils.GsonProvider;
 
 import java.util.concurrent.TimeUnit;
@@ -36,15 +37,15 @@ public class ApiClient {
         }
 
         Context appContext = context.getApplicationContext();
-        TokenManager tokenManager = TokenManager.getInstance(appContext);
+        AuthTokenManager authTokenManager = AuthTokenManager.getInstance(appContext);
 
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
         logging.level(HttpLoggingInterceptor.Level.BODY);
 
         OkHttpClient client = new OkHttpClient.Builder()
                 .addInterceptor(logging)
-                .addInterceptor(new AuthInterceptor(tokenManager))
-                .authenticator(new TokenAuthenticator(appContext, tokenManager, BASE_URL))
+                .addInterceptor(new AuthInterceptor(authTokenManager))
+                .authenticator(new TokenAuthenticator(appContext, authTokenManager, BASE_URL))
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
@@ -92,5 +93,9 @@ public class ApiClient {
 
     public static RatesService getRatesService() {
         return getRetrofit().create(RatesService.class);
+    }
+
+    public static TransferService getTransferService() {
+        return getRetrofit().create(TransferService.class);
     }
 }
