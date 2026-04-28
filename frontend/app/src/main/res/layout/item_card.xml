@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="16dp"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:paddingBottom="20dp">
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardContainer"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp"
+        app:layout_constraintDimensionRatio="1.586:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <!-- Card Background Gradient -->
+            <View
+                android:id="@+id/cardBackground"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/gradient_card_green" />
+
+            <!-- Blocked Overlay -->
+            <View
+                android:id="@+id/blockedOverlay"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#80000000"
+                android:visibility="gone" />
+
+            <!-- Card Content -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="20dp">
+
+                <!-- Virtual Badge - Top Right -->
+                <TextView
+                    android:id="@+id/tvVirtualBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top|end"
+                    android:background="@drawable/bg_badge_virtual"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:text="Virtual"
+                    android:textColor="@color/white"
+                    android:textSize="12sp" />
+
+                <!-- Masked Card Number - Bottom Left -->
+                <TextView
+                    android:id="@+id/tvCardNumber"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|start"
+                    android:fontFamily="monospace"
+                    android:letterSpacing="0.05"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    tools:text="•••• 1234" />
+
+            </FrameLayout>
+
+            <!-- Blocked Badge -->
+            <TextView
+                android:id="@+id/tvBlockedBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_badge_blocked"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="8dp"
+                android:text="BLOCAT"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+        </FrameLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <!-- VISA logo outside the card, bottom right -->
+    <ImageView
+        android:id="@+id/ivCardBrand"
+        android:layout_width="188dp"
+        android:layout_height="105dp"
+        android:adjustViewBounds="true"
+        android:elevation="20dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/visa_logo"
+        android:translationX="24dp"
+        android:translationY="18dp"
+        app:layout_constraintBottom_toBottomOf="@id/cardContainer"
+        app:layout_constraintEnd_toEndOf="@id/cardContainer" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

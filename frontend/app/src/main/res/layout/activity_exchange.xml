@@ -454,7 +454,7 @@
                     android:background="@drawable/bg_button_white_circular"
                     android:padding="16dp"
                     android:src="@drawable/ic_swap"
-                    app:tint="@color/dark_background" />
+                    app:tint="@color/black" />
 
                 <!-- Exchange Button -->
                 <Button

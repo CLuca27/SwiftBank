@@ -9,6 +9,7 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -20,6 +21,7 @@ public class SwiftBankDialog {
     private final ImageView ivIcon;
     private final TextView tvTitle;
     private final TextView tvMessage;
+    private final FrameLayout customViewContainer;
     private final Button btnPrimary;
     private final Button btnSecondary;
 
@@ -38,6 +40,7 @@ public class SwiftBankDialog {
         ivIcon = view.findViewById(R.id.ivDialogIcon);
         tvTitle = view.findViewById(R.id.tvDialogTitle);
         tvMessage = view.findViewById(R.id.tvDialogMessage);
+        customViewContainer = view.findViewById(R.id.customViewContainer);
         btnPrimary = view.findViewById(R.id.btnDialogPrimary);
         btnSecondary = view.findViewById(R.id.btnDialogSecondary);
 
@@ -56,6 +59,14 @@ public class SwiftBankDialog {
 
     public SwiftBankDialog setMessage(String message) {
         tvMessage.setText(message);
+        return this;
+    }
+
+    public SwiftBankDialog setCustomView(View view) {
+        tvMessage.setVisibility(View.GONE);
+        customViewContainer.setVisibility(View.VISIBLE);
+        customViewContainer.removeAllViews();
+        customViewContainer.addView(view);
         return this;
     }
 

@@ -6,13 +6,14 @@ import com.example.swiftbank.api.interceptors.AuthInterceptor;
 import com.example.swiftbank.api.interceptors.TokenAuthenticator;
 import com.example.swiftbank.api.services.AccountService;
 import com.example.swiftbank.api.services.AuthService;
+import com.example.swiftbank.api.services.CardService;
 import com.example.swiftbank.api.services.PlacesService;
 import com.example.swiftbank.api.services.RatesService;
 import com.example.swiftbank.api.services.TransactionService;
 import com.example.swiftbank.api.services.TransferService;
 import com.example.swiftbank.api.services.UserService;
-import com.example.swiftbank.storage.AuthTokenManager;
-import com.example.swiftbank.utils.GsonProvider;
+import com.example.swiftbank.managers.AuthTokenManager;
+import com.example.swiftbank.config.GsonProvider;
 
 import java.util.concurrent.TimeUnit;
 
@@ -97,5 +98,9 @@ public class ApiClient {
 
     public static TransferService getTransferService() {
         return getRetrofit().create(TransferService.class);
+    }
+
+    public static CardService getCardService() {
+        return getRetrofit().create(CardService.class);
     }
 }

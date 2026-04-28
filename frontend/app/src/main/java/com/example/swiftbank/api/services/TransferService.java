@@ -3,9 +3,9 @@ package com.example.swiftbank.api.services;
 import com.example.swiftbank.api.dto.request.CreateTransferRequest;
 import com.example.swiftbank.api.dto.request.ValidateIBANRequest;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.BeneficiariesData;
-import com.example.swiftbank.api.dto.response.data.TransferResultData;
-import com.example.swiftbank.api.dto.response.data.ValidateIBANData;
+import com.example.swiftbank.api.dto.response.data.success.BeneficiariesData;
+import com.example.swiftbank.api.dto.response.data.success.TransferResultData;
+import com.example.swiftbank.api.dto.response.data.success.ValidateIBANData;
 
 import retrofit2.Call;
 import retrofit2.http.Body;

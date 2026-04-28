@@ -24,14 +24,14 @@ import com.example.swiftbank.api.dto.request.CreateTransferRequest;
 import com.example.swiftbank.api.dto.request.ValidateIBANRequest;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.AccountData;
-import com.example.swiftbank.api.dto.response.data.AccountsData;
-import com.example.swiftbank.api.dto.response.data.ExchangeRateData;
-import com.example.swiftbank.api.dto.response.data.TransferResultData;
-import com.example.swiftbank.api.dto.response.data.ValidateIBANData;
-import com.example.swiftbank.storage.RatesManager;
+import com.example.swiftbank.api.dto.response.data.success.AccountData;
+import com.example.swiftbank.api.dto.response.data.success.AccountsData;
+import com.example.swiftbank.api.dto.response.data.success.ExchangeRateData;
+import com.example.swiftbank.api.dto.response.data.success.TransferResultData;
+import com.example.swiftbank.api.dto.response.data.success.ValidateIBANData;
+import com.example.swiftbank.managers.RatesManager;
 import com.example.swiftbank.utils.BiometricHelper;
-import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.utils.PinConfirmDialog;
 import com.example.swiftbank.utils.SwiftBankDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -51,13 +51,13 @@ public class TransferActivity extends AppCompatActivity {
 
     // Views
     private ImageView btnBack;
-    private LinearLayout accountSkeleton;
+    private LinearLayout accountSkeleton, skeletonIban, skeletonBeneficiary, skeletonAmount, skeletonDescription;
     private LinearLayout selectorFromAccount;
     private ImageView ivFlagFrom, ivFlagAmount;
     private TextView tvFromAccountName, tvFromAccountBalance;
     private EditText etIban, etBeneficiaryName, etAmount, etDescription;
     private LinearLayout layoutBankInfo, layoutConversion;
-    private LinearLayout cardIban, cardBeneficiary, cardAmount;
+    private LinearLayout cardIban, cardBeneficiary, cardAmount, cardDescription;
     private TextView tvBankName, tvCurrency, tvError;
     private TextView tvExchangeRate, tvConvertedAmount;
     private android.widget.ProgressBar progressIban;
@@ -106,6 +106,10 @@ public class TransferActivity extends AppCompatActivity {
     private void initViews() {
         btnBack = findViewById(R.id.btnBack);
         accountSkeleton = findViewById(R.id.accountSkeleton);
+        skeletonIban = findViewById(R.id.skeletonIban);
+        skeletonBeneficiary = findViewById(R.id.skeletonBeneficiary);
+        skeletonAmount = findViewById(R.id.skeletonAmount);
+        skeletonDescription = findViewById(R.id.skeletonDescription);
         selectorFromAccount = findViewById(R.id.selectorFromAccount);
         ivFlagFrom = findViewById(R.id.ivFlagFrom);
         ivFlagAmount = findViewById(R.id.ivFlagAmount);
@@ -120,6 +124,7 @@ public class TransferActivity extends AppCompatActivity {
         cardIban = findViewById(R.id.cardIban);
         cardBeneficiary = findViewById(R.id.cardBeneficiary);
         cardAmount = findViewById(R.id.cardAmount);
+        cardDescription = findViewById(R.id.cardDescription);
         tvBankName = findViewById(R.id.tvBankName);
         tvCurrency = findViewById(R.id.tvCurrency);
         tvError = findViewById(R.id.tvError);
@@ -208,34 +213,57 @@ public class TransferActivity extends AppCompatActivity {
         ApiClient.getAccountService().getAccounts().enqueue(new Callback<ApiResponse<AccountsData>>() {
             @Override
             public void onResponse(Call<ApiResponse<AccountsData>> call, Response<ApiResponse<AccountsData>> response) {
+                if (isFinishing() || isDestroyed()) return;
+
                 if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
                     accounts = response.body().getData().getAccounts();
                     if (!accounts.isEmpty()) {
                         selectAccount(accounts.get(0));
+                        showAccountContent();
+                        return;
                     }
                 }
-                showAccountContent();
+
+                new SwiftBankDialog(TransferActivity.this)
+                        .setIcon(R.drawable.ic_error)
+                        .setTitle("Eroare")
+                        .setMessage("Nu ai conturi disponibile")
+                        .setPrimaryButton("OK", v -> finish())
+                        .show();
             }
 
             @Override
             public void onFailure(Call<ApiResponse<AccountsData>> call, Throwable t) {
                 if (isFinishing() || isDestroyed()) return;
-                showAccountContent();
-                SwiftBankDialog.showErrorDialog(TransferActivity.this, "Eroare la încărcarea conturilor");
+                new SwiftBankDialog(TransferActivity.this)
+                        .setIcon(R.drawable.ic_error)
+                        .setTitle("Eroare")
+                        .setMessage("Eroare la încărcarea conturilor")
+                        .setPrimaryButton("OK", v -> finish())
+                        .show();
             }
         });
     }
 
     private void showAccountContent() {
-        if (accountSkeleton != null && selectorFromAccount != null) {
-            accountSkeleton.animate()
+        // Hide all skeletons
+        hideSkeletonWithAnimation(accountSkeleton, selectorFromAccount);
+        hideSkeletonWithAnimation(skeletonIban, cardIban);
+        hideSkeletonWithAnimation(skeletonBeneficiary, cardBeneficiary);
+        hideSkeletonWithAnimation(skeletonAmount, cardAmount);
+        hideSkeletonWithAnimation(skeletonDescription, cardDescription);
+    }
+
+    private void hideSkeletonWithAnimation(View skeleton, View content) {
+        if (skeleton != null && content != null) {
+            skeleton.animate()
                     .alpha(0f)
                     .setDuration(200)
                     .withEndAction(() -> {
-                        accountSkeleton.setVisibility(View.GONE);
-                        selectorFromAccount.setVisibility(View.VISIBLE);
-                        selectorFromAccount.setAlpha(0f);
-                        selectorFromAccount.animate().alpha(1f).setDuration(200).start();
+                        skeleton.setVisibility(View.GONE);
+                        content.setVisibility(View.VISIBLE);
+                        content.setAlpha(0f);
+                        content.animate().alpha(1f).setDuration(200).start();
                     }).start();
         }
     }
@@ -666,14 +694,13 @@ public class TransferActivity extends AppCompatActivity {
 
         class ViewHolder extends RecyclerView.ViewHolder {
             ImageView ivFlag;
-            TextView tvAccountName, tvIban, tvBalance, tvCurrency;
+            TextView tvAccountName, tvBalance, tvCurrency;
             ImageView ivSelected;
 
             ViewHolder(View itemView) {
                 super(itemView);
                 ivFlag = itemView.findViewById(R.id.ivFlag);
                 tvAccountName = itemView.findViewById(R.id.tvAccountName);
-                tvIban = itemView.findViewById(R.id.tvIban);
                 tvBalance = itemView.findViewById(R.id.tvBalance);
                 tvCurrency = itemView.findViewById(R.id.tvCurrency);
                 ivSelected = itemView.findViewById(R.id.ivSelected);
@@ -688,7 +715,6 @@ public class TransferActivity extends AppCompatActivity {
             void bind(AccountData account) {
                 ivFlag.setImageResource(getFlagResource(account.getCurrency()));
                 tvAccountName.setText("Personal · " + account.getCurrency());
-                tvIban.setText("•••• " + account.getIban().substring(account.getIban().length() - 4));
                 tvBalance.setText(balanceFormat.format(account.getBalance()));
                 tvCurrency.setText(getCurrencySymbol(account.getCurrency()));
 

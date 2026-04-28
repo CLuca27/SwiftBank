@@ -8,17 +8,14 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.biometric.BiometricManager;
 import androidx.core.content.ContextCompat;
@@ -30,10 +27,9 @@ import com.example.swiftbank.api.dto.request.LogoutRequest;
 import com.example.swiftbank.api.dto.request.UpdateSettingsRequest;
 import com.example.swiftbank.utils.DeviceDetails;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.SettingsData;
-import com.example.swiftbank.storage.BiometricCredentialsManager;
-import com.example.swiftbank.storage.FCMTokenManager;
-import com.example.swiftbank.storage.AuthTokenManager;
+import com.example.swiftbank.api.dto.response.data.success.SettingsData;
+import com.example.swiftbank.managers.BiometricCredentialsManager;
+import com.example.swiftbank.managers.AuthTokenManager;
 import com.example.swiftbank.utils.SwiftBankDialog;
 
 import retrofit2.Call;
@@ -45,7 +41,6 @@ public class SettingsActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "SwiftBankSettings";
     private static final String KEY_BIOMETRIC_ENABLED = "biometric_enabled";
     private static final String KEY_NOTIFICATIONS_ENABLED = "notifications_enabled";
-    private static final String KEY_THEME = "theme"; // "dark" or "light"
 
     private SharedPreferences prefs;
     private boolean isLoadingSettings = false;
@@ -72,9 +67,7 @@ public class SettingsActivity extends AppCompatActivity {
             });
     private LinearLayout settingChangePin;
     private LinearLayout settingEditProfile;
-    private LinearLayout settingTheme;
     private LinearLayout settingTerms;
-    private TextView tvCurrentTheme;
     private TextView tvAppVersion;
 
     @Override
@@ -109,7 +102,7 @@ public class SettingsActivity extends AppCompatActivity {
 
                 // Actualizează și pe server
                 UpdateSettingsRequest request = new UpdateSettingsRequest()
-                        .setNotificationsTransactionAlerts(false);
+                        .setNotificationsPush(false);
                 updateSettingOnServer(request);
             }
         }
@@ -121,9 +114,7 @@ public class SettingsActivity extends AppCompatActivity {
         switchNotifications = findViewById(R.id.switchNotifications);
         settingChangePin = findViewById(R.id.settingChangePin);
         settingEditProfile = findViewById(R.id.settingEditProfile);
-        settingTheme = findViewById(R.id.settingTheme);
         settingTerms = findViewById(R.id.settingTerms);
-        tvCurrentTheme = findViewById(R.id.tvCurrentTheme);
         tvAppVersion = findViewById(R.id.tvAppVersion);
 
         // Set app version
@@ -150,9 +141,6 @@ public class SettingsActivity extends AppCompatActivity {
 
         boolean notificationsEnabled = prefs.getBoolean(KEY_NOTIFICATIONS_ENABLED, true);
         switchNotifications.setChecked(notificationsEnabled);
-
-        String theme = prefs.getString(KEY_THEME, "dark");
-        tvCurrentTheme.setText(theme.equals("dark") ? "Întunecată" : "Luminoasă");
 
         // Fetch from server
         fetchSettingsFromServer();
@@ -186,12 +174,17 @@ public class SettingsActivity extends AppCompatActivity {
 
         // Security
         if (settings.getSecurity() != null) {
-            switchBiometric.setChecked(settings.getSecurity().isBiometricEnabled());
+            // Doar dacă dispozitivul suportă biometrie, altfel forțăm OFF
+            BiometricManager biometricManager = BiometricManager.from(this);
+            boolean biometricAvailable = biometricManager.canAuthenticate(
+                    BiometricManager.Authenticators.BIOMETRIC_WEAK) == BiometricManager.BIOMETRIC_SUCCESS;
+
+            switchBiometric.setChecked(biometricAvailable && settings.getSecurity().isBiometricEnabled());
         }
 
         // Notifications
         if (settings.getNotifications() != null) {
-            switchNotifications.setChecked(settings.getNotifications().isTransactionAlerts());
+            switchNotifications.setChecked(settings.getNotifications().isPushEnabled());
         }
 
         // Display - theme e local pentru acum
@@ -207,7 +200,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         if (settings.getNotifications() != null) {
-            editor.putBoolean(KEY_NOTIFICATIONS_ENABLED, settings.getNotifications().isTransactionAlerts());
+            editor.putBoolean(KEY_NOTIFICATIONS_ENABLED, settings.getNotifications().isPushEnabled());
         }
 
         editor.apply();
@@ -315,7 +308,7 @@ public class SettingsActivity extends AppCompatActivity {
             }
 
             UpdateSettingsRequest request = new UpdateSettingsRequest()
-                    .setNotificationsTransactionAlerts(isChecked);
+                    .setNotificationsPush(isChecked);
             updateSettingOnServer(request);
 
             prefs.edit().putBoolean(KEY_NOTIFICATIONS_ENABLED, isChecked).apply();
@@ -328,15 +321,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         // Edit Profile
         settingEditProfile.setOnClickListener(v -> {
-            // TODO: Implement edit profile screen
-            SwiftBankDialog.showInfoDialog(this,
-                "În curând",
-                "Editarea profilului va fi disponibilă în curând.");
-        });
-
-        // Theme
-        settingTheme.setOnClickListener(v -> {
-            showThemeDialog();
+            startActivity(new Intent(this, ProfileActivity.class));
         });
 
         // Terms
@@ -351,28 +336,6 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.btnLogout).setOnClickListener(v -> {
             showLogoutConfirmation();
         });
-    }
-
-    private void showThemeDialog() {
-        String currentTheme = prefs.getString(KEY_THEME, "dark");
-        boolean isDark = currentTheme.equals("dark");
-
-        new SwiftBankDialog(this)
-            .setTitle("Alege tema")
-            .setMessage("Tema curentă: " + (isDark ? "Întunecată" : "Luminoasă"))
-            .setPrimaryButton(isDark ? "Schimbă la Luminoasă" : "Schimbă la Întunecată", v -> {
-                String newTheme = isDark ? "light" : "dark";
-                prefs.edit().putString(KEY_THEME, newTheme).apply();
-                tvCurrentTheme.setText(newTheme.equals("dark") ? "Întunecată" : "Luminoasă");
-
-                // Aplică tema imediat
-                int nightMode = newTheme.equals("dark")
-                    ? AppCompatDelegate.MODE_NIGHT_YES
-                    : AppCompatDelegate.MODE_NIGHT_NO;
-                AppCompatDelegate.setDefaultNightMode(nightMode);
-            })
-            .setSecondaryButton("Anulează", null)
-            .show();
     }
 
     private void showLogoutConfirmation() {

@@ -96,9 +96,9 @@
                             android:textSize="16sp" />
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Folosește amprenta pentru a te autentifica"
+                            android:text="Folosește amprenta pentru a te autentifica și a autoriza plăți"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
 
@@ -108,8 +108,8 @@
                         android:id="@+id/switchBiometric"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        app:trackTint="@color/switch_track_color"
-                        app:thumbTint="@color/switch_thumb_color" />
+                        app:thumbTint="@color/switch_thumb_color"
+                        app:trackTint="@color/switch_track_color" />
 
                 </LinearLayout>
 
@@ -215,8 +215,8 @@
                         android:id="@+id/switchNotifications"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        app:trackTint="@color/switch_track_color"
-                        app:thumbTint="@color/switch_thumb_color" />
+                        app:thumbTint="@color/switch_thumb_color"
+                        app:trackTint="@color/switch_track_color" />
 
                 </LinearLayout>
 
@@ -264,74 +264,6 @@
                         android:text="Editează profilul"
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
-
-                    <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_chevron_right"
-                        app:tint="@color/text_hint" />
-
-                </LinearLayout>
-
-            </LinearLayout>
-
-            <!-- Aspect Section -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="8dp"
-                android:text="Aspect"
-                android:textColor="@color/green_accent"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_card_dark"
-                android:orientation="vertical"
-                android:padding="4dp">
-
-                <!-- Theme -->
-                <LinearLayout
-                    android:id="@+id/settingTheme"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/bg_settings_item"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="16dp">
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@drawable/ic_palette"
-                        app:tint="@color/text_primary" />
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Temă"
-                            android:textColor="@color/text_primary"
-                            android:textSize="16sp" />
-
-                        <TextView
-                            android:id="@+id/tvCurrentTheme"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Întunecată"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-
-                    </LinearLayout>
 
                     <ImageView
                         android:layout_width="20dp"
@@ -436,18 +368,43 @@
 
             </LinearLayout>
 
-            <!-- Logout Button -->
-            <Button
-                android:id="@+id/btnLogout"
+            <!-- Logout -->
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
                 android:layout_marginBottom="24dp"
-                android:background="@drawable/bg_button_outline_red"
-                android:text="Deconectare"
-                android:textAllCaps="false"
-                android:textColor="@color/error_red"
-                android:textSize="16sp" />
+                android:background="@drawable/bg_card_dark"
+                android:orientation="vertical"
+                android:padding="4dp">
+
+                <LinearLayout
+                    android:id="@+id/btnLogout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_settings_item"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_logout"
+                        app:tint="@color/error_red" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:text="Deconectare"
+                        android:textColor="@color/error_red"
+                        android:textSize="16sp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
 
         </LinearLayout>
 

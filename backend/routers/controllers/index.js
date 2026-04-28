@@ -6,6 +6,7 @@ import transaction from "./transaction-controller.js";
 import account from "./account-controller.js";
 import user from "./user-controller.js";
 import transfer from "./transfer-controller.js";
+import card from "./card-controller.js";
 
 
 export default {
@@ -16,5 +17,6 @@ export default {
     transaction,
     account,
     user,
-    transfer
+    transfer,
+    card
 }

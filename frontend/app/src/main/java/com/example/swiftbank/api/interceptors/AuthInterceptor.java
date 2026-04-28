@@ -2,7 +2,7 @@ package com.example.swiftbank.api.interceptors;
 
 import androidx.annotation.NonNull;
 
-import com.example.swiftbank.storage.AuthTokenManager;
+import com.example.swiftbank.managers.AuthTokenManager;
 
 import java.io.IOException;
 

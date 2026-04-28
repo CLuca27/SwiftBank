@@ -11,12 +11,12 @@ import com.example.swiftbank.api.dto.request.SendOtpRequest;
 import com.example.swiftbank.api.dto.request.RefreshRequest;
 import com.example.swiftbank.api.dto.request.VerifyOtpRequest;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.CheckData;
-import com.example.swiftbank.api.dto.response.data.ForgotPinData;
-import com.example.swiftbank.api.dto.response.data.LoginData;
-import com.example.swiftbank.api.dto.response.data.RefreshData;
-import com.example.swiftbank.api.dto.response.data.TokenData;
-import com.example.swiftbank.api.dto.response.data.IdentifyData;
+import com.example.swiftbank.api.dto.response.data.success.CheckData;
+import com.example.swiftbank.api.dto.response.data.success.ForgotPinData;
+import com.example.swiftbank.api.dto.response.data.success.LoginData;
+import com.example.swiftbank.api.dto.response.data.success.RefreshData;
+import com.example.swiftbank.api.dto.response.data.success.TokenData;
+import com.example.swiftbank.api.dto.response.data.success.IdentifyData;
 
 import retrofit2.Call;
 import retrofit2.http.Body;

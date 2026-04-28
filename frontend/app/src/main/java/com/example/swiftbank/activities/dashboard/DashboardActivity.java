@@ -4,9 +4,6 @@ import android.Manifest;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -24,6 +21,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.swiftbank.api.dto.response.data.success.transaction.TransferTransaction;
 import com.example.swiftbank.utils.SwiftBankDialog;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -39,18 +37,18 @@ import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.request.AddAccountRequest;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
-import com.example.swiftbank.api.dto.response.data.AccountData;
-import com.example.swiftbank.api.dto.response.data.AccountsData;
-import com.example.swiftbank.api.dto.response.data.NewAccountData;
-import com.example.swiftbank.api.dto.response.data.ProfileData;
-import com.example.swiftbank.api.dto.response.data.TransactionsData;
-import com.example.swiftbank.api.dto.response.data.RatesData;
-import com.example.swiftbank.utils.ErrorParser;
-import com.example.swiftbank.storage.RatesManager;
-import com.example.swiftbank.storage.AuthTokenManager;
+import com.example.swiftbank.api.dto.response.data.success.AccountData;
+import com.example.swiftbank.api.dto.response.data.success.AccountsData;
+import com.example.swiftbank.api.dto.response.data.success.NewAccountData;
+import com.example.swiftbank.api.dto.response.data.success.ProfileData;
+import com.example.swiftbank.api.dto.response.data.success.TransactionsData;
+import com.example.swiftbank.api.dto.response.data.success.RatesData;
+import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
+import com.example.swiftbank.managers.RatesManager;
 import com.example.swiftbank.views.ParticlesView;
 import com.example.swiftbank.activities.settings.SettingsActivity;
-import com.example.swiftbank.realtime.RealtimeManager;
+import com.example.swiftbank.activities.settings.ProfileActivity;
+import com.example.swiftbank.managers.RealtimeManager;
 import com.google.gson.JsonObject;
 
 import java.util.HashMap;
@@ -59,7 +57,6 @@ import java.util.Map;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 import java.text.DecimalFormat;
@@ -80,7 +77,7 @@ public class DashboardActivity extends AppCompatActivity {
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
                 if (isGranted) {
                     // Permisiune acordată - înregistrăm device-ul pentru FCM
-                    com.example.swiftbank.storage.FCMTokenManager.getInstance(this).registerDevice();
+                    com.example.swiftbank.managers.FCMTokenManager.getInstance(this).registerDevice();
                 }
                 // Marcăm că am întrebat (indiferent de răspuns)
                 getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -94,6 +91,7 @@ public class DashboardActivity extends AppCompatActivity {
     private ParticlesView particlesView;
     private LinearLayout balanceSection;
     private TextView tvAvatarInitials;
+    private ImageView ivAvatarPhoto;
     private TextView tvGreeting;
     private TextView tvUserName;
     private TextView tvAccountType;
@@ -104,7 +102,6 @@ public class DashboardActivity extends AppCompatActivity {
     private GestureDetector gestureDetector;
     private RecyclerView rvTransactions;
     private LinearLayout emptyTransactionsState;
-    private BottomNavigationView bottomNavigation;
 
     // Skeleton views
     private LinearLayout profileSkeleton, profileContent;
@@ -112,7 +109,7 @@ public class DashboardActivity extends AppCompatActivity {
     private LinearLayout transactionsSkeleton;
 
     // Quick Actions
-    private LinearLayout btnAddMoney, btnSend, btnExchange, btnMore;
+    private LinearLayout btnSend, btnExchange, btnMore;
     private ImageView btnSettings;
 
     // State
@@ -183,6 +180,7 @@ public class DashboardActivity extends AppCompatActivity {
         // Refresh data when returning from other activities
         loadAccounts();
         loadRates();
+        loadProfile();
 
         // Start particles animation
         if (particlesView != null) {
@@ -233,6 +231,7 @@ public class DashboardActivity extends AppCompatActivity {
         particlesView = findViewById(R.id.particlesView);
         balanceSection = findViewById(R.id.balanceSection);
         tvAvatarInitials = findViewById(R.id.tvAvatarInitials);
+        ivAvatarPhoto = findViewById(R.id.ivAvatarPhoto);
         tvGreeting = findViewById(R.id.tvGreeting);
         tvUserName = findViewById(R.id.tvUserName);
         tvAccountType = findViewById(R.id.tvAccountType);
@@ -242,9 +241,7 @@ public class DashboardActivity extends AppCompatActivity {
         dotsIndicator = findViewById(R.id.dotsIndicator);
         rvTransactions = findViewById(R.id.rvTransactions);
         emptyTransactionsState = findViewById(R.id.emptyTransactionsState);
-        bottomNavigation = findViewById(R.id.bottomNavigation);
 
-        btnAddMoney = findViewById(R.id.btnAddMoney);
         btnSend = findViewById(R.id.btnSend);
         btnExchange = findViewById(R.id.btnExchange);
         btnMore = findViewById(R.id.btnMore);
@@ -319,10 +316,6 @@ public class DashboardActivity extends AppCompatActivity {
     private void setupListeners() {
         btnAccounts.setOnClickListener(v -> showAccountsBottomSheet());
 
-        btnAddMoney.setOnClickListener(v -> {
-            Toast.makeText(this, "Adaugă bani - Coming soon", Toast.LENGTH_SHORT).show();
-        });
-
         btnSend.setOnClickListener(v -> {
             startActivity(new Intent(this, com.example.swiftbank.activities.transfer.TransferActivity.class));
         });
@@ -338,35 +331,25 @@ public class DashboardActivity extends AppCompatActivity {
         });
 
         btnMore.setOnClickListener(v -> {
-            Toast.makeText(this, "Mai multe opțiuni - Coming soon", Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(this, com.example.swiftbank.activities.cards.CardsActivity.class));
         });
 
         btnSettings.setOnClickListener(v -> {
             startActivity(new Intent(this, SettingsActivity.class));
         });
 
-        bottomNavigation.setOnItemSelectedListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.nav_home) {
-                return true;
-            } else if (id == R.id.nav_cards) {
-                Toast.makeText(this, "Carduri - Coming soon", Toast.LENGTH_SHORT).show();
-                return true;
-            } else if (id == R.id.nav_payments) {
-                Toast.makeText(this, "Plăți - Coming soon", Toast.LENGTH_SHORT).show();
-                return true;
-            } else if (id == R.id.nav_stats) {
-                Toast.makeText(this, "Statistici - Coming soon", Toast.LENGTH_SHORT).show();
-                return true;
-            } else if (id == R.id.nav_profile) {
-                Toast.makeText(this, "Profil - Coming soon", Toast.LENGTH_SHORT).show();
-                return true;
-            }
-            return false;
+        profileContent.setOnClickListener(v -> {
+            startActivity(new Intent(this, ProfileActivity.class));
         });
 
         findViewById(R.id.btnSeeAllTransactions).setOnClickListener(v -> {
-            Toast.makeText(this, "Vezi toate tranzacțiile - Coming soon", Toast.LENGTH_SHORT).show();
+            if (!accounts.isEmpty()) {
+                Account account = accounts.get(selectedAccountIndex);
+                Intent intent = new Intent(this, com.example.swiftbank.activities.transactions.TransactionsActivity.class);
+                intent.putExtra(com.example.swiftbank.activities.transactions.TransactionsActivity.EXTRA_ACCOUNT_ID, account.id);
+                intent.putExtra(com.example.swiftbank.activities.transactions.TransactionsActivity.EXTRA_ACCOUNT_CURRENCY, account.currency);
+                startActivity(intent);
+            }
         });
     }
 
@@ -642,6 +625,9 @@ public class DashboardActivity extends AppCompatActivity {
                     currentUserId = profile.getUserId();
                     updateGreeting();
 
+                    // Încarcă poza de profil
+                    loadProfilePhoto(profile.getProfilePhoto());
+
                     // Setup realtime subscription pentru acest user
                     setupRealtimeSubscription();
                 }
@@ -655,6 +641,36 @@ public class DashboardActivity extends AppCompatActivity {
                 showProfileContent();
             }
         });
+    }
+
+    private void loadProfilePhoto(String base64Photo) {
+        if (base64Photo == null || base64Photo.isEmpty()) {
+            // Fără poză - afișează inițialele
+            tvAvatarInitials.setVisibility(View.VISIBLE);
+            ivAvatarPhoto.setVisibility(View.GONE);
+            return;
+        }
+
+        try {
+            // Elimină prefixul data:image/...;base64, dacă există
+            String base64Data = base64Photo;
+            if (base64Photo.contains(",")) {
+                base64Data = base64Photo.substring(base64Photo.indexOf(",") + 1);
+            }
+
+            byte[] decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT);
+            android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+
+            if (bitmap != null) {
+                ivAvatarPhoto.setImageBitmap(bitmap);
+                ivAvatarPhoto.setVisibility(View.VISIBLE);
+                tvAvatarInitials.setVisibility(View.GONE);
+            }
+        } catch (Exception e) {
+            // Eroare la decodare - păstrează inițialele
+            tvAvatarInitials.setVisibility(View.VISIBLE);
+            ivAvatarPhoto.setVisibility(View.GONE);
+        }
     }
 
     private void setupRealtimeSubscription() {
@@ -813,13 +829,13 @@ public class DashboardActivity extends AppCompatActivity {
                     @Override
                     public void onResponse(Call<ApiResponse<TransactionsData>> call, Response<ApiResponse<TransactionsData>> response) {
                         if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
-                            List<com.example.swiftbank.api.dto.transaction.Transaction> apiTransactions =
+                            List<com.example.swiftbank.api.dto.response.data.success.transaction.Transaction> apiTransactions =
                                     response.body().getData().getTransactions();
 
                             transactionItems.clear();
                             String lastDateGroup = "";
 
-                            for (com.example.swiftbank.api.dto.transaction.Transaction t : apiTransactions) {
+                            for (com.example.swiftbank.api.dto.response.data.success.transaction.Transaction t : apiTransactions) {
                                 String dateGroup = getDateGroup(t.getCreatedAt());
 
                                 if (!dateGroup.equals(lastDateGroup)) {
@@ -851,10 +867,13 @@ public class DashboardActivity extends AppCompatActivity {
         if (createdAt == null) return "ALTELE";
 
         try {
+            // Parsează ca UTC
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
+            sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
             java.util.Date date = sdf.parse(createdAt);
             if (date == null) return "ALTELE";
 
+            // Convertește la timezone-ul local pentru comparație
             Calendar transactionCal = Calendar.getInstance();
             transactionCal.setTime(date);
 
@@ -867,6 +886,7 @@ public class DashboardActivity extends AppCompatActivity {
             } else if (isSameDay(transactionCal, yesterday)) {
                 return "IERI";
             } else {
+                // Afișează în timezone-ul local
                 java.text.SimpleDateFormat outputFormat = new java.text.SimpleDateFormat("d MMMM", new Locale("ro"));
                 return outputFormat.format(date).toUpperCase();
             }
@@ -883,8 +903,11 @@ public class DashboardActivity extends AppCompatActivity {
     private String formatTime(String createdAt) {
         if (createdAt == null) return "";
         try {
+            // Parsează ca UTC
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
+            sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
             java.util.Date date = sdf.parse(createdAt);
+            // Afișează în timezone-ul local
             java.text.SimpleDateFormat outputFormat = new java.text.SimpleDateFormat("HH:mm", Locale.getDefault());
             return outputFormat.format(date);
         } catch (Exception e) {
@@ -892,20 +915,23 @@ public class DashboardActivity extends AppCompatActivity {
         }
     }
 
-    private int getIconForTransaction(com.example.swiftbank.api.dto.transaction.Transaction t) {
+    private int getIconForTransaction(com.example.swiftbank.api.dto.response.data.success.transaction.Transaction t) {
         String type = t.getTransactionType();
         if (type == null) return R.drawable.ic_shopping;
 
         // Verifică dacă e schimb valutar (transfer cu conversie)
-        if (t instanceof com.example.swiftbank.api.dto.transaction.TransferTransaction) {
-            com.example.swiftbank.api.dto.transaction.TransferTransaction transfer =
-                (com.example.swiftbank.api.dto.transaction.TransferTransaction) t;
+        if (t instanceof TransferTransaction) {
+            TransferTransaction transfer =
+                (TransferTransaction) t;
             if (transfer.hasCurrencyConversion()) {
                 return R.drawable.ic_exchange;
             }
         }
 
         switch (type) {
+            case "SELF_IN":
+            case "SELF_OUT":
+                return R.drawable.ic_exchange;
             case "TRANSFER":
                 return t.getAmount() > 0 ? R.drawable.ic_transfer_in : R.drawable.ic_transfer_out;
             case "TRANSFER_IN":
@@ -920,28 +946,84 @@ public class DashboardActivity extends AppCompatActivity {
         }
     }
 
-    private Transaction createTransactionItem(com.example.swiftbank.api.dto.transaction.Transaction t, String accountCurrency) {
+    private Transaction createTransactionItem(com.example.swiftbank.api.dto.response.data.success.transaction.Transaction t, String accountCurrency) {
         String currency = t.getCurrency() != null ? t.getCurrency().trim() : accountCurrency;
         String time = formatTime(t.getCreatedAt());
         int iconRes = getIconForTransaction(t);
 
         // Verifică dacă e transfer
-        if (t instanceof com.example.swiftbank.api.dto.transaction.TransferTransaction) {
-            com.example.swiftbank.api.dto.transaction.TransferTransaction transfer =
-                (com.example.swiftbank.api.dto.transaction.TransferTransaction) t;
+        if (t instanceof TransferTransaction) {
+            TransferTransaction transfer =
+                (TransferTransaction) t;
 
-            // Prioritate 1: Orice transfer cu beneficiar valid - afișează inițiale
             String beneficiary = transfer.getBeneficiaryName();
-            if (beneficiary != null && !beneficiary.isEmpty() && !beneficiary.equals("Schimb valutar")) {
+
+            // Verifică dacă e transfer între conturile proprii (SELF_IN sau SELF_OUT din VIEW)
+            String transactionType = t.getTransactionType();
+            boolean isOwnAccountTransfer = "SELF_IN".equals(transactionType) || "SELF_OUT".equals(transactionType);
+
+            // Prioritate 1: Transfer către propriul cont CU conversie valutară
+            if (isOwnAccountTransfer && transfer.hasCurrencyConversion() && transfer.getOriginalCurrency() != null) {
+                String fromCurr, toCurr;
+                double displayAmount = t.getAmount();
+
+                if (t.getAmount() > 0) {
+                    // Am primit bani - originalCurrency → currency
+                    fromCurr = transfer.getOriginalCurrency().trim();
+                    toCurr = currency;
+                } else {
+                    // Am trimis bani - currency → originalCurrency
+                    fromCurr = currency;
+                    toCurr = transfer.getOriginalCurrency().trim();
+                }
+
+                String title = fromCurr + " → " + toCurr;
+
+                return Transaction.withExchange(
+                    t.getId(),
+                    t.getTransactionType(),
+                    title,
+                    "Transfer între conturi",
+                    displayAmount,
+                    currency,
+                    time,
+                    R.drawable.ic_exchange,
+                    transfer.getOriginalAmount() != null ? transfer.getOriginalAmount() : Math.abs(displayAmount),
+                    transfer.getOriginalCurrency() != null ? transfer.getOriginalCurrency().trim() : currency,
+                    fromCurr,
+                    toCurr
+                );
+            }
+
+            // Transfer către propriul cont FĂRĂ conversie (aceeași valută) - afișează simplu
+            if (isOwnAccountTransfer) {
+                return new Transaction(
+                    t.getId(),
+                    t.getTransactionType(),
+                    "Transfer între conturi",
+                    t.getAmount() > 0 ? "Primit din alt cont" : "Trimis către alt cont",
+                    t.getAmount(),
+                    currency,
+                    time,
+                    R.drawable.ic_exchange
+                );
+            }
+
+            // Prioritate 2: Transfer către altcineva - afișează inițiale/poză
+            if (beneficiary != null && !beneficiary.isEmpty() && !beneficiary.equals("Schimb valutar") && !isOwnAccountTransfer) {
                 String initials = getInitials(beneficiary);
+                String senderPhoto = transfer.getSenderPhoto();
                 return Transaction.withInitials(
+                    t.getId(),
+                    t.getTransactionType(),
                     t.getTitle(),
                     t.getSubtitle(),
                     t.getAmount(),
                     currency,
                     time,
                     iconRes,
-                    initials
+                    initials,
+                    senderPhoto
                 );
             }
 
@@ -981,6 +1063,8 @@ public class DashboardActivity extends AppCompatActivity {
                     }
 
                     return Transaction.withExchange(
+                        t.getId(),
+                        t.getTransactionType(),
                         t.getTitle(),
                         t.getSubtitle(),
                         primaryAmount,
@@ -998,6 +1082,8 @@ public class DashboardActivity extends AppCompatActivity {
 
         // Tranzacție normală (card, bill, etc.)
         return new Transaction(
+            t.getId(),
+            t.getTransactionType(),
             t.getTitle(),
             t.getSubtitle(),
             t.getAmount(),
@@ -1198,8 +1284,7 @@ public class DashboardActivity extends AppCompatActivity {
         rvTransactions.setLayoutManager(new LinearLayoutManager(this));
         rvTransactions.setAdapter(transactionsAdapter);
         rvTransactions.setNestedScrollingEnabled(false);
-
-        updateTransactionsVisibility();
+        // updateTransactionsVisibility() se apeleaza doar dupa loadTransactionsForAccount()
     }
 
     @Override
@@ -1242,6 +1327,8 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     static class Transaction {
+        int id;
+        String transactionType;
         String title;
         String subtitle;
         double amount;
@@ -1249,9 +1336,10 @@ public class DashboardActivity extends AppCompatActivity {
         String time;
         int iconRes;
 
-        // Pentru inițiale (transferuri către persoane)
+        // Pentru inițiale/poză (transferuri către persoane)
         boolean showInitials;
         String initials;
+        String senderPhoto;
 
         // Pentru exchange (sumă secundară)
         boolean isExchange;
@@ -1262,7 +1350,9 @@ public class DashboardActivity extends AppCompatActivity {
         String fromCurrency;
         String toCurrency;
 
-        Transaction(String title, String subtitle, double amount, String currency, String time, int iconRes) {
+        Transaction(int id, String transactionType, String title, String subtitle, double amount, String currency, String time, int iconRes) {
+            this.id = id;
+            this.transactionType = transactionType;
             this.title = title;
             this.subtitle = subtitle;
             this.amount = amount;
@@ -1273,20 +1363,21 @@ public class DashboardActivity extends AppCompatActivity {
             this.isExchange = false;
         }
 
-        // Constructor extins pentru transferuri cu inițiale
-        static Transaction withInitials(String title, String subtitle, double amount, String currency,
-                                        String time, int iconRes, String initials) {
-            Transaction t = new Transaction(title, subtitle, amount, currency, time, iconRes);
+        // Constructor extins pentru transferuri cu inițiale și poză
+        static Transaction withInitials(int id, String transactionType, String title, String subtitle, double amount, String currency,
+                                        String time, int iconRes, String initials, String senderPhoto) {
+            Transaction t = new Transaction(id, transactionType, title, subtitle, amount, currency, time, iconRes);
             t.showInitials = true;
             t.initials = initials;
+            t.senderPhoto = senderPhoto;
             return t;
         }
 
         // Constructor extins pentru exchange cu sumă secundară
-        static Transaction withExchange(String title, String subtitle, double amount, String currency,
+        static Transaction withExchange(int id, String transactionType, String title, String subtitle, double amount, String currency,
                                         String time, int iconRes, double secondaryAmount,
                                         String secondaryCurrency, String fromCurrency, String toCurrency) {
-            Transaction t = new Transaction(title, subtitle, amount, currency, time, iconRes);
+            Transaction t = new Transaction(id, transactionType, title, subtitle, amount, currency, time, iconRes);
             t.isExchange = true;
             t.secondaryAmount = secondaryAmount;
             t.secondaryCurrency = secondaryCurrency;
@@ -1335,14 +1426,13 @@ public class DashboardActivity extends AppCompatActivity {
 
         class ViewHolder extends RecyclerView.ViewHolder {
             ImageView ivFlag, ivSelected;
-            TextView tvAccountName, tvIban, tvBalance, tvCurrency;
+            TextView tvAccountName, tvBalance, tvCurrency;
 
             ViewHolder(@NonNull View itemView) {
                 super(itemView);
                 ivFlag = itemView.findViewById(R.id.ivFlag);
                 ivSelected = itemView.findViewById(R.id.ivSelected);
                 tvAccountName = itemView.findViewById(R.id.tvAccountName);
-                tvIban = itemView.findViewById(R.id.tvIban);
                 tvBalance = itemView.findViewById(R.id.tvBalance);
                 tvCurrency = itemView.findViewById(R.id.tvCurrency);
 
@@ -1355,7 +1445,6 @@ public class DashboardActivity extends AppCompatActivity {
 
             void bind(Account account, boolean isSelected) {
                 tvAccountName.setText(getAccountTypeName(account.type) + " · " + account.currency);
-                tvIban.setText("•••• " + account.iban.substring(account.iban.length() - 4));
                 tvBalance.setText(formatBalance(account.balance));
                 tvCurrency.setText(getCurrencySymbol(account.currency));
 
@@ -1439,7 +1528,7 @@ public class DashboardActivity extends AppCompatActivity {
             TextView tvMerchantName, tvCategory, tvAmount, tvTime;
             View cardIcon, cardInitials, exchangeIconContainer;
             TextView tvInitials, tvSecondaryAmount;
-            ImageView ivFlagFrom, ivFlagTo;
+            ImageView ivFlagFrom, ivFlagTo, ivSenderPhoto;
 
             TransactionViewHolder(@NonNull View itemView) {
                 super(itemView);
@@ -1451,10 +1540,25 @@ public class DashboardActivity extends AppCompatActivity {
                 cardIcon = itemView.findViewById(R.id.cardIcon);
                 cardInitials = itemView.findViewById(R.id.cardInitials);
                 tvInitials = itemView.findViewById(R.id.tvInitials);
+                ivSenderPhoto = itemView.findViewById(R.id.ivSenderPhoto);
                 tvSecondaryAmount = itemView.findViewById(R.id.tvSecondaryAmount);
                 exchangeIconContainer = itemView.findViewById(R.id.exchangeIconContainer);
                 ivFlagFrom = itemView.findViewById(R.id.ivFlagFrom);
                 ivFlagTo = itemView.findViewById(R.id.ivFlagTo);
+
+                itemView.setOnClickListener(v -> {
+                    int pos = getAdapterPosition();
+                    if (pos != RecyclerView.NO_POSITION && items.get(pos) instanceof Transaction) {
+                        Transaction t = (Transaction) items.get(pos);
+                        Intent intent = new Intent(DashboardActivity.this, com.example.swiftbank.activities.transactions.TransactionDetailsActivity.class);
+                        intent.putExtra(com.example.swiftbank.activities.transactions.TransactionDetailsActivity.EXTRA_TRANSACTION_ID, t.id);
+                        intent.putExtra(com.example.swiftbank.activities.transactions.TransactionDetailsActivity.EXTRA_TRANSACTION_TYPE, t.transactionType);
+                        if (!accounts.isEmpty()) {
+                            intent.putExtra(com.example.swiftbank.activities.transactions.TransactionDetailsActivity.EXTRA_ACCOUNT_CURRENCY, accounts.get(selectedAccountIndex).currency);
+                        }
+                        startActivity(intent);
+                    }
+                });
             }
 
             void bind(Transaction transaction) {
@@ -1499,11 +1603,39 @@ public class DashboardActivity extends AppCompatActivity {
                     ivFlagFrom.setImageResource(getFlagForCurrency(transaction.fromCurrency));
                     ivFlagTo.setImageResource(getFlagForCurrency(transaction.toCurrency));
                 } else if (transaction.showInitials && cardInitials != null && cardIcon != null) {
-                    // Transfer către persoană - afișează cercul cu inițiale
+                    // Transfer către persoană - afișează cercul cu poză sau inițiale
                     cardIcon.setVisibility(View.GONE);
                     cardInitials.setVisibility(View.VISIBLE);
                     if (exchangeIconContainer != null) exchangeIconContainer.setVisibility(View.GONE);
-                    tvInitials.setText(transaction.initials);
+
+                    // Încearcă să afișeze poza, altfel inițialele
+                    if (transaction.senderPhoto != null && !transaction.senderPhoto.isEmpty() && ivSenderPhoto != null) {
+                        try {
+                            String base64Data = transaction.senderPhoto;
+                            if (base64Data.contains(",")) {
+                                base64Data = base64Data.substring(base64Data.indexOf(",") + 1);
+                            }
+                            byte[] decodedBytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT);
+                            android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+                            if (bitmap != null) {
+                                ivSenderPhoto.setImageBitmap(bitmap);
+                                ivSenderPhoto.setVisibility(View.VISIBLE);
+                                tvInitials.setVisibility(View.GONE);
+                            } else {
+                                ivSenderPhoto.setVisibility(View.GONE);
+                                tvInitials.setVisibility(View.VISIBLE);
+                                tvInitials.setText(transaction.initials);
+                            }
+                        } catch (Exception e) {
+                            ivSenderPhoto.setVisibility(View.GONE);
+                            tvInitials.setVisibility(View.VISIBLE);
+                            tvInitials.setText(transaction.initials);
+                        }
+                    } else {
+                        if (ivSenderPhoto != null) ivSenderPhoto.setVisibility(View.GONE);
+                        tvInitials.setVisibility(View.VISIBLE);
+                        tvInitials.setText(transaction.initials);
+                    }
                 } else if (cardIcon != null) {
                     // Iconița normală
                     cardIcon.setVisibility(View.VISIBLE);

@@ -26,30 +26,6 @@ public class UpdateSettingsRequest {
         return this;
     }
 
-    public UpdateSettingsRequest setNotificationsEmail(boolean enabled) {
-        Map<String, Object> notifications = getOrCreateMap("notifications");
-        notifications.put("email_enabled", enabled);
-        return this;
-    }
-
-    public UpdateSettingsRequest setNotificationsTransactionAlerts(boolean enabled) {
-        Map<String, Object> notifications = getOrCreateMap("notifications");
-        notifications.put("transaction_alerts", enabled);
-        return this;
-    }
-
-    public UpdateSettingsRequest setDisplayHideBalance(boolean hidden) {
-        Map<String, Object> display = getOrCreateMap("display");
-        display.put("hide_balance", hidden);
-        return this;
-    }
-
-    public UpdateSettingsRequest setDisplayLanguage(String language) {
-        Map<String, Object> display = getOrCreateMap("display");
-        display.put("language", language);
-        return this;
-    }
-
     @SuppressWarnings("unchecked")
     private Map<String, Object> getOrCreateMap(String key) {
         if (!settings.containsKey(key)) {

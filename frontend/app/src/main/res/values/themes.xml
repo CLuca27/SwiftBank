@@ -1,14 +1,14 @@
 <resources>
-    <!-- Tema principală - Light Mode -->
-    <style name="Theme.SwiftBank" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <!-- Tema principală - Dark Mode -->
+    <style name="Theme.SwiftBank" parent="Theme.MaterialComponents.NoActionBar">
         <item name="colorPrimary">@color/green_medium</item>
         <item name="colorPrimaryVariant">@color/green_dark</item>
         <item name="colorOnPrimary">@color/white</item>
         <item name="android:windowBackground">@color/dark_background</item>
         <item name="android:statusBarColor">@color/status_bar</item>
         <item name="android:navigationBarColor">@color/dark_background</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
     <!-- Tema pentru Splash Screen (Android 12+) -->
@@ -33,5 +33,18 @@
 
     <style name="DialogButtonStyle" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
         <item name="android:textColor">@color/green_accent</item>
+    </style>
+
+    <!-- Dark AlertDialog pentru selectii -->
+    <style name="DarkAlertDialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="android:background">@color/card_background</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textColorPrimary">@color/white</item>
+        <item name="android:textColorSecondary">@color/white_70</item>
+        <item name="colorAccent">@color/green_accent</item>
+        <item name="colorControlActivated">@color/green_accent</item>
+        <item name="colorControlHighlight">@color/green_accent_50</item>
+        <item name="buttonBarNegativeButtonStyle">@style/DialogButtonStyle</item>
+        <item name="buttonBarPositiveButtonStyle">@style/DialogButtonStyle</item>
     </style>
 </resources>

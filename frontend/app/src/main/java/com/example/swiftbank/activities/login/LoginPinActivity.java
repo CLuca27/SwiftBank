@@ -24,21 +24,21 @@ import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
 
 import com.example.swiftbank.R;
-import com.example.swiftbank.storage.BiometricCredentialsManager;
+import com.example.swiftbank.managers.BiometricCredentialsManager;
 import com.example.swiftbank.activities.dashboard.DashboardActivity;
 import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.request.ForgotPinRequest;
 import com.example.swiftbank.api.dto.request.LoginRequest;
-import com.example.swiftbank.api.dto.response.data.ForgotPinData;
+import com.example.swiftbank.api.dto.response.data.success.ForgotPinData;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.LoginData;
+import com.example.swiftbank.api.dto.response.data.success.LoginData;
 import com.example.swiftbank.api.dto.response.data.error.AttemptsErrorData;
 import com.example.swiftbank.api.dto.response.data.error.ErrorData;
 import com.example.swiftbank.api.dto.response.data.error.LoginCooldownErrorData;
-import com.example.swiftbank.storage.AuthTokenManager;
+import com.example.swiftbank.managers.AuthTokenManager;
 import com.example.swiftbank.utils.DeviceDetails;
-import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.utils.SwiftBankDialog;
 import com.example.swiftbank.views.ParticlesView;
 
@@ -302,7 +302,7 @@ public class LoginPinActivity extends AppCompatActivity {
             );
 
             // Înregistrează dispozitivul pentru notificări push
-            com.example.swiftbank.storage.FCMTokenManager.getInstance(this).registerDevice();
+            com.example.swiftbank.managers.FCMTokenManager.getInstance(this).registerDevice();
 
             // Navighează la Dashboard cu animație
             Intent intent = new Intent(this, DashboardActivity.class);

@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:name=".SwiftBankApplication"
@@ -31,14 +34,19 @@
             android:name=".activities.settings.SettingsActivity"
             android:exported="false" />
         <activity
-            android:name=".activities.transfer.TransferActivity"
+            android:name=".activities.settings.ProfileActivity"
             android:exported="false" />
+        <activity
+            android:name=".activities.transfer.TransferActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.login.LoginPinActivity"
             android:exported="false" />
         <activity
             android:name=".activities.login.ResetPinOtpActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.login.ResetPinSetActivity"
             android:exported="false" />
@@ -53,21 +61,40 @@
             android:exported="false" />
         <activity
             android:name=".activities.register.RegisterDetailsActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.register.BackActivity"
             android:exported="false" />
         <activity
             android:name=".activities.register.RegisterEmailActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.register.OtpActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.register.RegisterPhoneActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.welcome.WelcomeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.cards.CardsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.cards.CardDetailsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.cards.CardDesignActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.transactions.TransactionsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.transactions.TransactionDetailsActivity"
             android:exported="false" />
         <activity
             android:name=".activities.splash.SplashActivity"
@@ -79,6 +106,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- FileProvider for camera photos -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Firebase Messaging Service -->
         <service

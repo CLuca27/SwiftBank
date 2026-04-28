@@ -9,7 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.swiftbank.R;
-import com.example.swiftbank.api.dto.response.data.PlaceSuggestionData;
+import com.example.swiftbank.api.dto.response.data.success.PlaceSuggestionData;
 
 import java.util.ArrayList;
 import java.util.List;

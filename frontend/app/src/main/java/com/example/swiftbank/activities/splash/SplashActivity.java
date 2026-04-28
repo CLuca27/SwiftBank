@@ -15,7 +15,6 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
-import android.view.animation.DecelerateInterpolator;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -29,10 +28,10 @@ import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.request.RefreshRequest;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.RefreshData;
-import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.api.dto.response.data.success.RefreshData;
+import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.utils.SwiftBankDialog;
-import com.example.swiftbank.storage.AuthTokenManager;
+import com.example.swiftbank.managers.AuthTokenManager;
 import com.example.swiftbank.views.ParticlesView;
 
 import retrofit2.Call;
@@ -43,7 +42,7 @@ public class SplashActivity extends AppCompatActivity {
 
     private static final String TAG = "SplashActivity";
     private static final long MIN_SPLASH_DURATION = 6000;
-    private static final long SYSTEM_SPLASH_DURATION = 1500; // Durata splash-ului Android 12+
+    private static final long SYSTEM_SPLASH_DURATION = 1000;
 
     private CardView logoCard;
     private TextView appNameText;
@@ -57,17 +56,14 @@ public class SplashActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Install splash screen before calling super.onCreate()
         SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
 
         super.onCreate(savedInstanceState);
 
-        // Configurare splash screen Android 12+
         setupSplashScreen(splashScreen);
 
         setContentView(R.layout.activity_splash);
 
-        // Initialize views
         logoCard = findViewById(R.id.logoCard);
         appNameText = findViewById(R.id.appNameText);
         dot1 = findViewById(R.id.dot1);
@@ -78,21 +74,17 @@ public class SplashActivity extends AppCompatActivity {
 
         startTime = System.currentTimeMillis();
 
-        // Start animations + check network + auth
         startAnimations();
         checkNetworkAndAuth();
     }
 
     private void setupSplashScreen(SplashScreen splashScreen) {
-        // Păstrează splash-ul vizibil până când flag-ul devine false
         splashScreen.setKeepOnScreenCondition(() -> keepSplashScreen);
 
-        // După SYSTEM_SPLASH_DURATION, ascunde splash-ul cu animație
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             keepSplashScreen = false;
         }, SYSTEM_SPLASH_DURATION);
 
-        // Animație de ieșire - fade out simplu și rapid
         splashScreen.setOnExitAnimationListener(splashScreenView -> {
             splashScreenView.getView()
                     .animate()
@@ -106,7 +98,6 @@ public class SplashActivity extends AppCompatActivity {
     private void checkNetworkAndAuth() {
         if (!isNetworkAvailable()) {
             SwiftBankDialog.showNoNetworkDialog(this, v -> {
-                // Reset timer și retry
                 startTime = System.currentTimeMillis();
                 checkNetworkAndAuth();
             });
@@ -130,14 +121,12 @@ public class SplashActivity extends AppCompatActivity {
     private void checkAuthStatus() {
         AuthTokenManager authTokenManager = AuthTokenManager.getInstance(this);
 
-        // Nu există refresh token → Welcome
         if (!authTokenManager.hasRefreshToken()) {
             Log.d(TAG, "No refresh token found");
             navigateWithDelay(WelcomeActivity.class);
             return;
         }
 
-        // Există refresh token → încearcă refresh
         String refreshToken = authTokenManager.getRefreshToken();
         String deviceId = Settings.Secure.getString(
                 getContentResolver(),
@@ -175,7 +164,6 @@ public class SplashActivity extends AppCompatActivity {
             authTokenManager.saveTokens(data.getAccessToken(), data.getRefreshToken());
             Log.d(TAG, "Refresh successful, tokens saved");
 
-            // Navighează la LoginPinActivity cu datele user-ului
             Intent intent = new Intent(this, LoginPinActivity.class);
             if (data.getUser() != null) {
                 intent.putExtra("email", data.getUser().getEmail());
@@ -214,14 +202,12 @@ public class SplashActivity extends AppCompatActivity {
             Log.d(TAG, "Error code: " + errorCode);
 
             if ("ACCOUNT_BLOCKED".equals(errorCode)) {
-                // TODO: navigheză la BlockedActivity când e gata
                 Log.d(TAG, "Account is blocked");
                 navigateWithDelay(WelcomeActivity.class);
                 return;
             }
         }
 
-        // Orice altă eroare - clear tokens și Welcome
         authTokenManager.clearTokens();
         navigateWithDelay(WelcomeActivity.class);
     }
@@ -247,10 +233,15 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void startAnimations() {
-        // Logo fade in + scale
         logoCard.setAlpha(0f);
         logoCard.setScaleX(0.8f);
         logoCard.setScaleY(0.8f);
+        appNameText.setAlpha(0f);
+        appNameText.setTranslationY(30f);
+
+        dot1.setAlpha(0f);
+        dot2.setAlpha(0f);
+        dot3.setAlpha(0f);
 
         logoCard.animate()
                 .alpha(1f)
@@ -259,60 +250,75 @@ public class SplashActivity extends AppCompatActivity {
                 .setDuration(800)
                 .setStartDelay(200)
                 .setInterpolator(new AccelerateDecelerateInterpolator())
+                .withEndAction(() -> {
+                    appNameText.animate()
+                            .alpha(1f)
+                            .translationY(0f)
+                            .setDuration(500)
+                            .setInterpolator(new AccelerateDecelerateInterpolator())
+                            .withEndAction(this::startDotsAnimation)
+                            .start();
+                })
                 .start();
-
-        // App name fade in + slide up
-        appNameText.setAlpha(0f);
-        appNameText.setTranslationY(30f);
-
-        appNameText.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setDuration(800)
-                .setStartDelay(500)
-                .setInterpolator(new AccelerateDecelerateInterpolator())
-                .start();
-
-        // Loading dots - start after 1 second
-        handler.postDelayed(this::startDotsAnimation, 1000);
     }
 
     private void startDotsAnimation() {
-        View[] dots = {dot1, dot2, dot3};
+        ObjectAnimator dot1Fade = ObjectAnimator.ofFloat(dot1, "alpha", 0f, 1f);
+        ObjectAnimator dot2Fade = ObjectAnimator.ofFloat(dot2, "alpha", 0f, 1f);
+        ObjectAnimator dot3Fade = ObjectAnimator.ofFloat(dot3, "alpha", 0f, 1f);
 
-        for (View dot : dots) {
-            dot.setAlpha(0.3f);
-            dot.setScaleX(0.6f);
-            dot.setScaleY(0.6f);
-        }
+        dot1Fade.setDuration(300);
+        dot2Fade.setDuration(300);
+        dot3Fade.setDuration(300);
 
-        animateDot(dot1, 0);
-        animateDot(dot2, 250);
-        animateDot(dot3, 500);
+        dot1Fade.setStartDelay(0);
+        dot2Fade.setStartDelay(150);
+        dot3Fade.setStartDelay(300);
+
+        AnimatorSet fadeIn = new AnimatorSet();
+        fadeIn.playTogether(dot1Fade, dot2Fade, dot3Fade);
+        fadeIn.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                startDotsPulseAnimation();
+            }
+        });
+        fadeIn.start();
     }
 
-    private void animateDot(View dot, long startDelay) {
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(dot, "scaleX", 0.6f, 1f, 0.6f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(dot, "scaleY", 0.6f, 1f, 0.6f);
-        ObjectAnimator alpha = ObjectAnimator.ofFloat(dot, "alpha", 0.3f, 1f, 0.3f);
+    private void startDotsPulseAnimation() {
+        ObjectAnimator dot1Scale = ObjectAnimator.ofFloat(dot1, "scaleX", 1f, 1.3f, 1f);
+        ObjectAnimator dot1ScaleY = ObjectAnimator.ofFloat(dot1, "scaleY", 1f, 1.3f, 1f);
+        ObjectAnimator dot2Scale = ObjectAnimator.ofFloat(dot2, "scaleX", 1f, 1.3f, 1f);
+        ObjectAnimator dot2ScaleY = ObjectAnimator.ofFloat(dot2, "scaleY", 1f, 1.3f, 1f);
+        ObjectAnimator dot3Scale = ObjectAnimator.ofFloat(dot3, "scaleX", 1f, 1.3f, 1f);
+        ObjectAnimator dot3ScaleY = ObjectAnimator.ofFloat(dot3, "scaleY", 1f, 1.3f, 1f);
 
-        AnimatorSet animatorSet = new AnimatorSet();
-        animatorSet.playTogether(scaleX, scaleY, alpha);
-        animatorSet.setDuration(1200);
-        animatorSet.setStartDelay(startDelay);
-        animatorSet.setInterpolator(new AccelerateDecelerateInterpolator());
+        dot1Scale.setDuration(600);
+        dot1ScaleY.setDuration(600);
+        dot2Scale.setDuration(600);
+        dot2ScaleY.setDuration(600);
+        dot3Scale.setDuration(600);
+        dot3ScaleY.setDuration(600);
 
-        animatorSet.addListener(new AnimatorListenerAdapter() {
+        dot1Scale.setStartDelay(0);
+        dot1ScaleY.setStartDelay(0);
+        dot2Scale.setStartDelay(200);
+        dot2ScaleY.setStartDelay(200);
+        dot3Scale.setStartDelay(400);
+        dot3ScaleY.setStartDelay(400);
+
+        AnimatorSet pulse = new AnimatorSet();
+        pulse.playTogether(dot1Scale, dot1ScaleY, dot2Scale, dot2ScaleY, dot3Scale, dot3ScaleY);
+        pulse.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
                 if (!isFinishing() && !isDestroyed()) {
-                    animatorSet.setStartDelay(0);
-                    animatorSet.start();
+                    startDotsPulseAnimation();
                 }
             }
         });
-
-        animatorSet.start();
+        pulse.start();
     }
 
     @Override
@@ -320,9 +326,6 @@ public class SplashActivity extends AppCompatActivity {
         super.onDestroy();
         if (handler != null) {
             handler.removeCallbacksAndMessages(null);
-        }
-        if (particlesView != null) {
-            particlesView.stopAnimation();
         }
     }
 }

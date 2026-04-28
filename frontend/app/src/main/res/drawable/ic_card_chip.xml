@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="36dp"
+    android:height="28dp"
+    android:viewportWidth="36"
+    android:viewportHeight="28">
+
+    <!-- Main chip body with rounded corners -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M3,0 L33,0 A3,3 0 0 1 36,3 L36,25 A3,3 0 0 1 33,28 L3,28 A3,3 0 0 1 0,25 L0,3 A3,3 0 0 1 3,0 Z" />
+
+    <!-- Left contact pads (3 pads) -->
+    <path
+        android:fillColor="#C5A028"
+        android:pathData="M0,3 L10,3 L10,8 L0,8 Z" />
+    <path
+        android:fillColor="#C5A028"
+        android:pathData="M0,11 L10,11 L10,17 L0,17 Z" />
+    <path
+        android:fillColor="#C5A028"
+        android:pathData="M0,20 L10,20 L10,25 L0,25 Z" />
+
+    <!-- Right contact pads (3 pads) -->
+    <path
+        android:fillColor="#C5A028"
+        android:pathData="M26,3 L36,3 L36,8 L26,8 Z" />
+    <path
+        android:fillColor="#C5A028"
+        android:pathData="M26,11 L36,11 L36,17 L26,17 Z" />
+    <path
+        android:fillColor="#C5A028"
+        android:pathData="M26,20 L36,20 L36,25 L26,25 Z" />
+
+    <!-- Central processor area -->
+    <path
+        android:fillColor="#E5C44A"
+        android:pathData="M12,3 L24,3 L24,25 L12,25 Z" />
+
+    <!-- Horizontal divider line -->
+    <path
+        android:fillColor="#B39326"
+        android:pathData="M12,13 L24,13 L24,15 L12,15 Z" />
+
+    <!-- Vertical center line -->
+    <path
+        android:fillColor="#B39326"
+        android:pathData="M17,3 L19,3 L19,25 L17,25 Z" />
+
+    <!-- Separator lines between pads -->
+    <path
+        android:fillColor="#9A7D1F"
+        android:pathData="M10,3 L11,3 L11,25 L10,25 Z" />
+    <path
+        android:fillColor="#9A7D1F"
+        android:pathData="M25,3 L26,3 L26,25 L25,25 Z" />
+
+    <!-- Horizontal separators left -->
+    <path
+        android:fillColor="#9A7D1F"
+        android:pathData="M0,9 L10,9 L10,10 L0,10 Z" />
+    <path
+        android:fillColor="#9A7D1F"
+        android:pathData="M0,18 L10,18 L10,19 L0,19 Z" />
+
+    <!-- Horizontal separators right -->
+    <path
+        android:fillColor="#9A7D1F"
+        android:pathData="M26,9 L36,9 L36,10 L26,10 Z" />
+    <path
+        android:fillColor="#9A7D1F"
+        android:pathData="M26,18 L36,18 L36,19 L26,19 Z" />
+
+</vector>

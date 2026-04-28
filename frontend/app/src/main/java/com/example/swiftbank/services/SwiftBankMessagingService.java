@@ -11,15 +11,9 @@ import androidx.core.app.NotificationCompat;
 
 import com.example.swiftbank.R;
 import com.example.swiftbank.activities.dashboard.DashboardActivity;
-import com.example.swiftbank.api.ApiClient;
-import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.storage.AuthTokenManager;
+import com.example.swiftbank.managers.AuthTokenManager;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 
 public class SwiftBankMessagingService extends FirebaseMessagingService {
 
@@ -127,7 +121,7 @@ public class SwiftBankMessagingService extends FirebaseMessagingService {
         }
 
         // Re-înregistrează token-ul nou la server
-        com.example.swiftbank.storage.FCMTokenManager.getInstance(this).registerDevice();
+        com.example.swiftbank.managers.FCMTokenManager.getInstance(this).registerDevice();
     }
 
     /**

@@ -20,8 +20,8 @@ import com.example.swiftbank.api.dto.request.ForgotPinRequest;
 import com.example.swiftbank.api.dto.request.VerifyOtpRequest;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.ForgotPinData;
-import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.api.dto.response.data.success.ForgotPinData;
+import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.utils.SwiftBankDialog;
 import com.example.swiftbank.views.ParticlesView;
 

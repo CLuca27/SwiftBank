@@ -5,6 +5,13 @@ import config from '../config/index.js';
  * Înregistrează un dispozitiv pentru notificări push
  */
 async function registerDevice(userId, deviceId, deviceName, fcmToken) {
+    // Șterge token-urile altor useri pentru acest device (când alt user se loghează pe același device)
+    await config.supabase
+        .from('fcm_tokens')
+        .delete()
+        .eq('device_id', deviceId)
+        .neq('user_id', userId);
+
     const { data, error } = await config.supabase
         .from('fcm_tokens')
         .upsert({
@@ -131,9 +138,8 @@ async function sendPushNotification(userId, title, body, data = {}) {
 
     try {
         const response = await firebase.messaging().sendEachForMulticast(message);
-
         console.log(`[Notifications] Sent to user ${userId}: ${response.successCount} success, ${response.failureCount} failed`);
-
+        console.log(response.responses);
         // Șterge token-urile invalide
         if (response.failureCount > 0) {
             const tokensToRemove = [];

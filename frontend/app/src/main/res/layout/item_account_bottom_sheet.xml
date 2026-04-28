@@ -17,7 +17,7 @@
         android:layout_height="44dp"
         app:cardCornerRadius="22dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="@color/white_10">
+        app:cardBackgroundColor="@color/surface_color">
 
         <ImageView
             android:id="@+id/ivFlag"
@@ -45,15 +45,6 @@
             android:textSize="16sp"
             android:textStyle="bold"
             tools:text="Personal · RON" />
-
-        <TextView
-            android:id="@+id/tvIban"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp"
-            tools:text="•••• 6789" />
 
     </LinearLayout>
 

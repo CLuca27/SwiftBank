@@ -1,7 +1,7 @@
 package com.example.swiftbank.api.services;
 
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.TransactionsData;
+import com.example.swiftbank.api.dto.response.data.success.TransactionsData;
 
 import retrofit2.Call;
 import retrofit2.http.GET;

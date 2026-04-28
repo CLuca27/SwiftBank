@@ -12,6 +12,8 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.LinearInterpolator;
 
+import androidx.core.content.ContextCompat;
+
 import com.example.swiftbank.R;
 
 /**
@@ -33,8 +35,8 @@ public class SkeletonView extends View {
     private RectF rect;
 
     private float cornerRadius = 8f;
-    private int baseColor = 0x33FFFFFF;
-    private int shimmerColor = 0x66FFFFFF;
+    private int baseColor;
+    private int shimmerColor;
     private int animationDuration = 1000;
 
     private float shimmerPosition = -1f;
@@ -57,15 +59,20 @@ public class SkeletonView extends View {
     }
 
     private void init(AttributeSet attrs) {
+        int defaultBaseColor = ContextCompat.getColor(getContext(), R.color.surface_color);
+        int defaultShimmerColor = ContextCompat.getColor(getContext(), R.color.divider_color);
+
         if (attrs != null) {
             TypedArray a = getContext().obtainStyledAttributes(attrs, R.styleable.SkeletonView);
             cornerRadius = a.getDimension(R.styleable.SkeletonView_skeleton_radius, 8f * getResources().getDisplayMetrics().density);
-            baseColor = a.getColor(R.styleable.SkeletonView_skeleton_color, 0x33FFFFFF);
-            shimmerColor = a.getColor(R.styleable.SkeletonView_skeleton_shimmer_color, 0x66FFFFFF);
+            baseColor = a.getColor(R.styleable.SkeletonView_skeleton_color, defaultBaseColor);
+            shimmerColor = a.getColor(R.styleable.SkeletonView_skeleton_shimmer_color, defaultShimmerColor);
             animationDuration = a.getInt(R.styleable.SkeletonView_skeleton_duration, 1000);
             a.recycle();
         } else {
             cornerRadius = 8f * getResources().getDisplayMetrics().density;
+            baseColor = defaultBaseColor;
+            shimmerColor = defaultShimmerColor;
         }
 
         basePaint = new Paint(Paint.ANTI_ALIAS_FLAG);

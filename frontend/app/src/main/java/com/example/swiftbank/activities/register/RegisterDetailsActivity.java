@@ -27,10 +27,10 @@ import com.example.swiftbank.api.dto.RegistrationData;
 import com.example.swiftbank.api.dto.request.CheckRequest;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.CheckData;
-import com.example.swiftbank.api.dto.response.data.PlaceDetailsData;
-import com.example.swiftbank.api.dto.response.data.PlaceSuggestionData;
-import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.api.dto.response.data.success.CheckData;
+import com.example.swiftbank.api.dto.response.data.success.PlaceDetailsData;
+import com.example.swiftbank.api.dto.response.data.success.PlaceSuggestionData;
+import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.views.ParticlesView;
 
 import java.util.Calendar;

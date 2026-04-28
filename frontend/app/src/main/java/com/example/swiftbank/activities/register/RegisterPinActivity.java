@@ -19,13 +19,13 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.swiftbank.R;
 import com.example.swiftbank.activities.dashboard.DashboardActivity;
-import com.example.swiftbank.storage.AuthTokenManager;
+import com.example.swiftbank.managers.AuthTokenManager;
 import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.request.RegisterRequest;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.TokenData;
-import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.api.dto.response.data.success.TokenData;
+import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.api.dto.RegistrationData;
 import com.example.swiftbank.views.ParticlesView;
 

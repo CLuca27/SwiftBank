@@ -20,8 +20,10 @@ apiRouter.get('/transactions', controllers.transaction.getTransactions);
 
 // User
 apiRouter.get('/user/profile', controllers.user.getProfile);
+apiRouter.put('/user/profile', controllers.user.updateProfile);
 apiRouter.get('/user/settings', controllers.user.getSettings);
 apiRouter.put('/user/settings', controllers.user.updateSettings);
+apiRouter.post('/user/verify-pin', controllers.user.verifyPin);
 apiRouter.put('/user/change-pin', controllers.user.changePin);
 
 // Devices (FCM)
@@ -32,6 +34,14 @@ apiRouter.delete('/user/devices/:deviceId', controllers.user.unregisterDevice);
 apiRouter.post('/transfers/validate-iban', controllers.transfer.validateIBAN);
 apiRouter.post('/transfers', controllers.transfer.createTransfer);
 apiRouter.get('/beneficiaries', controllers.transfer.getBeneficiaries);
+
+// Cards
+apiRouter.get('/cards', controllers.card.getCards);
+apiRouter.post('/cards', controllers.card.createCard);
+apiRouter.post('/cards/:cardId/details', controllers.card.getCardDetails);
+apiRouter.put('/cards/:cardId/block', controllers.card.toggleBlock);
+apiRouter.put('/cards/:cardId/currency', controllers.card.updateCurrency);
+apiRouter.delete('/cards/:cardId', controllers.card.deleteCard);
 
 
 export default apiRouter;

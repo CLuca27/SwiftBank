@@ -3,10 +3,10 @@ package com.example.swiftbank.api.services;
 import com.example.swiftbank.api.dto.request.AddAccountRequest;
 import com.example.swiftbank.api.dto.request.ExchangeRequest;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.AccountsData;
-import com.example.swiftbank.api.dto.response.data.ExchangeRateData;
-import com.example.swiftbank.api.dto.response.data.ExchangeResultData;
-import com.example.swiftbank.api.dto.response.data.NewAccountData;
+import com.example.swiftbank.api.dto.response.data.success.AccountsData;
+import com.example.swiftbank.api.dto.response.data.success.ExchangeRateData;
+import com.example.swiftbank.api.dto.response.data.success.ExchangeResultData;
+import com.example.swiftbank.api.dto.response.data.success.NewAccountData;
 
 import retrofit2.Call;
 import retrofit2.http.Body;

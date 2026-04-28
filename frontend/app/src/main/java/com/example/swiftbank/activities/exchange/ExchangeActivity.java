@@ -22,13 +22,13 @@ import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.request.ExchangeRequest;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.AccountData;
-import com.example.swiftbank.api.dto.response.data.AccountsData;
-import com.example.swiftbank.api.dto.response.data.ExchangeRateData;
-import com.example.swiftbank.api.dto.response.data.ExchangeResultData;
-import com.example.swiftbank.storage.RatesManager;
+import com.example.swiftbank.api.dto.response.data.success.AccountData;
+import com.example.swiftbank.api.dto.response.data.success.AccountsData;
+import com.example.swiftbank.api.dto.response.data.success.ExchangeRateData;
+import com.example.swiftbank.api.dto.response.data.success.ExchangeResultData;
+import com.example.swiftbank.managers.RatesManager;
 import com.example.swiftbank.utils.BiometricHelper;
-import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.utils.PinConfirmDialog;
 import com.example.swiftbank.utils.SwiftBankDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -506,14 +506,25 @@ public class ExchangeActivity extends AppCompatActivity {
                             .show();
                     }
                 } else {
-                    showContent();
+                    if (isFinishing() || isDestroyed()) return;
+                    new SwiftBankDialog(ExchangeActivity.this)
+                            .setIcon(R.drawable.ic_error)
+                            .setTitle("Eroare")
+                            .setMessage("Eroare la încărcarea conturilor")
+                            .setPrimaryButton("OK", v -> finish())
+                            .show();
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<AccountsData>> call, Throwable t) {
-                showContent();
-                SwiftBankDialog.showErrorDialog(ExchangeActivity.this, "Eroare la încărcarea conturilor");
+                if (isFinishing() || isDestroyed()) return;
+                new SwiftBankDialog(ExchangeActivity.this)
+                        .setIcon(R.drawable.ic_error)
+                        .setTitle("Eroare")
+                        .setMessage("Eroare la încărcarea conturilor")
+                        .setPrimaryButton("OK", v -> finish())
+                        .show();
             }
         });
     }
@@ -700,7 +711,7 @@ public class ExchangeActivity extends AppCompatActivity {
         new PinConfirmDialog(
                 this,
                 "Confirmă mutarea",
-                String.format("Introdu PIN-ul pentru a muta %s → %s", amountStr, destStr),
+                String.format("Introdu PIN-ul pentru a converti %s în %s", amountStr, destStr),
                 new PinConfirmDialog.PinCallback() {
                     @Override
                     public void onPinConfirmed() {
@@ -742,7 +753,7 @@ public class ExchangeActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     ExchangeResultData result = response.body().getData();
 
-                    String message = String.format("Ai mutat %.2f %s → %.2f %s",
+                    String message = String.format("%.2f %s → %.2f %s",
                         Math.abs(result.getFrom().getAmount()),
                         result.getFrom().getCurrency(),
                         result.getTo().getAmount(),
@@ -815,14 +826,13 @@ public class ExchangeActivity extends AppCompatActivity {
 
         class ViewHolder extends RecyclerView.ViewHolder {
             ImageView ivFlag;
-            TextView tvAccountName, tvIban, tvBalance, tvCurrency;
+            TextView tvAccountName, tvBalance, tvCurrency;
             ImageView ivSelected;
 
             ViewHolder(View itemView) {
                 super(itemView);
                 ivFlag = itemView.findViewById(R.id.ivFlag);
                 tvAccountName = itemView.findViewById(R.id.tvAccountName);
-                tvIban = itemView.findViewById(R.id.tvIban);
                 tvBalance = itemView.findViewById(R.id.tvBalance);
                 tvCurrency = itemView.findViewById(R.id.tvCurrency);
                 ivSelected = itemView.findViewById(R.id.ivSelected);
@@ -837,7 +847,6 @@ public class ExchangeActivity extends AppCompatActivity {
             void bind(AccountData account) {
                 ivFlag.setImageResource(getFlagResource(account.getCurrency()));
                 tvAccountName.setText("Personal · " + account.getCurrency());
-                tvIban.setText("•••• " + account.getIban().substring(account.getIban().length() - 4));
                 tvBalance.setText(balanceFormat.format(account.getBalance()));
                 tvCurrency.setText(getCurrencySymbol(account.getCurrency()));
                 ivSelected.setVisibility(View.GONE);

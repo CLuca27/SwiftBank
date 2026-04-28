@@ -25,8 +25,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:layout_marginBottom="64dp">
+        android:orientation="vertical">
 
         <!-- Top Section (non-scrolling) -->
         <LinearLayout
@@ -103,15 +102,28 @@
                         app:cardElevation="0dp"
                         app:cardBackgroundColor="@color/green_accent">
 
-                        <TextView
-                            android:id="@+id/tvAvatarInitials"
+                        <FrameLayout
                             android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:gravity="center"
-                            android:text="LC"
-                            android:textColor="@color/green_darkest"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
+                            android:layout_height="match_parent">
+
+                            <TextView
+                                android:id="@+id/tvAvatarInitials"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:gravity="center"
+                                android:text="LC"
+                                android:textColor="@color/green_darkest"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+
+                            <ImageView
+                                android:id="@+id/ivAvatarPhoto"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:scaleType="centerCrop"
+                                android:visibility="gone" />
+
+                        </FrameLayout>
 
                     </androidx.cardview.widget.CardView>
 
@@ -142,34 +154,17 @@
 
                 </LinearLayout>
 
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                <ImageView
+                    android:id="@+id/btnSettings"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
-                    android:orientation="horizontal">
-
-                    <ImageView
-                        android:id="@+id/btnNotifications"
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:padding="10dp"
-                        android:src="@drawable/ic_notifications"
-                        android:contentDescription="Notifications"
-                        app:tint="@color/white" />
-
-                    <ImageView
-                        android:id="@+id/btnSettings"
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:padding="10dp"
-                        android:src="@drawable/ic_settings"
-                        android:contentDescription="Settings"
-                        app:tint="@color/white" />
-
-                </LinearLayout>
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_settings"
+                    android:contentDescription="Settings"
+                    app:tint="@color/white" />
 
             </RelativeLayout>
 
@@ -236,7 +231,7 @@
                             android:id="@+id/tvTotalBalance"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="12.450,75"
+                            android:text="0,00"
                             android:textColor="@color/white"
                             android:textSize="42sp"
                             android:textStyle="bold"
@@ -285,42 +280,6 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="20dp"
                 android:paddingVertical="8dp">
-
-                <!-- Adaugă bani -->
-                <LinearLayout
-                    android:id="@+id/btnAddMoney"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="center_horizontal"
-                    android:orientation="vertical"
-                    android:padding="4dp">
-
-                    <FrameLayout
-                        android:layout_width="56dp"
-                        android:layout_height="56dp"
-                        android:background="@drawable/bg_quick_action_circle">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_gravity="center"
-                            android:src="@drawable/ic_add"
-                            app:tint="@color/white" />
-
-                    </FrameLayout>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="Adaugă\nbani"
-                        android:gravity="center"
-                        android:lines="2"
-                        android:textColor="@color/white"
-                        android:textSize="11sp" />
-
-                </LinearLayout>
 
                 <!-- Mută -->
                 <LinearLayout
@@ -394,7 +353,7 @@
 
                 </LinearLayout>
 
-                <!-- Mai multe -->
+                <!-- Carduri -->
                 <LinearLayout
                     android:id="@+id/btnMore"
                     android:layout_width="0dp"
@@ -413,7 +372,7 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:layout_gravity="center"
-                            android:src="@drawable/ic_more"
+                            android:src="@drawable/ic_card"
                             app:tint="@color/white" />
 
                     </FrameLayout>
@@ -422,7 +381,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="Mai multe\n"
+                        android:text="Carduri\n"
                         android:gravity="center"
                         android:lines="2"
                         android:textColor="@color/white"
@@ -601,6 +560,286 @@
 
                 </LinearLayout>
 
+                <!-- Skeleton Transaction 4 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingVertical="12dp">
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        app:skeleton_radius="22dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="110dp"
+                            android:layout_height="14dp"
+                            app:skeleton_radius="4dp" />
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="75dp"
+                            android:layout_height="12dp"
+                            android:layout_marginTop="6dp"
+                            app:skeleton_radius="4dp" />
+
+                    </LinearLayout>
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="55dp"
+                        android:layout_height="16dp"
+                        app:skeleton_radius="4dp" />
+
+                </LinearLayout>
+
+                <!-- Skeleton Transaction 5 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingVertical="12dp">
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        app:skeleton_radius="22dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="130dp"
+                            android:layout_height="14dp"
+                            app:skeleton_radius="4dp" />
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="85dp"
+                            android:layout_height="12dp"
+                            android:layout_marginTop="6dp"
+                            app:skeleton_radius="4dp" />
+
+                    </LinearLayout>
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="65dp"
+                        android:layout_height="16dp"
+                        app:skeleton_radius="4dp" />
+
+                </LinearLayout>
+
+                <!-- Skeleton Transaction 6 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingVertical="12dp">
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        app:skeleton_radius="22dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="95dp"
+                            android:layout_height="14dp"
+                            app:skeleton_radius="4dp" />
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="65dp"
+                            android:layout_height="12dp"
+                            android:layout_marginTop="6dp"
+                            app:skeleton_radius="4dp" />
+
+                    </LinearLayout>
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="50dp"
+                        android:layout_height="16dp"
+                        app:skeleton_radius="4dp" />
+
+                </LinearLayout>
+
+                <!-- Skeleton Transaction 7 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingVertical="12dp">
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        app:skeleton_radius="22dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="125dp"
+                            android:layout_height="14dp"
+                            app:skeleton_radius="4dp" />
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="80dp"
+                            android:layout_height="12dp"
+                            android:layout_marginTop="6dp"
+                            app:skeleton_radius="4dp" />
+
+                    </LinearLayout>
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="60dp"
+                        android:layout_height="16dp"
+                        app:skeleton_radius="4dp" />
+
+                </LinearLayout>
+
+                <!-- Skeleton Transaction 8 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingVertical="12dp">
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        app:skeleton_radius="22dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="105dp"
+                            android:layout_height="14dp"
+                            app:skeleton_radius="4dp" />
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="70dp"
+                            android:layout_height="12dp"
+                            android:layout_marginTop="6dp"
+                            app:skeleton_radius="4dp" />
+
+                    </LinearLayout>
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="55dp"
+                        android:layout_height="16dp"
+                        app:skeleton_radius="4dp" />
+
+                </LinearLayout>
+
+                <!-- Skeleton Transaction 9 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingVertical="12dp">
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        app:skeleton_radius="22dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="135dp"
+                            android:layout_height="14dp"
+                            app:skeleton_radius="4dp" />
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="88dp"
+                            android:layout_height="12dp"
+                            android:layout_marginTop="6dp"
+                            app:skeleton_radius="4dp" />
+
+                    </LinearLayout>
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="72dp"
+                        android:layout_height="16dp"
+                        app:skeleton_radius="4dp" />
+
+                </LinearLayout>
+
+                <!-- Skeleton Transaction 10 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingVertical="12dp">
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        app:skeleton_radius="22dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="115dp"
+                            android:layout_height="14dp"
+                            app:skeleton_radius="4dp" />
+
+                        <com.example.swiftbank.views.SkeletonView
+                            android:layout_width="78dp"
+                            android:layout_height="12dp"
+                            android:layout_marginTop="6dp"
+                            app:skeleton_radius="4dp" />
+
+                    </LinearLayout>
+
+                    <com.example.swiftbank.views.SkeletonView
+                        android:layout_width="58dp"
+                        android:layout_height="16dp"
+                        app:skeleton_radius="4dp" />
+
+                </LinearLayout>
+
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
@@ -642,21 +881,5 @@
         </LinearLayout>
 
     </LinearLayout>
-
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNavigation"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="64dp"
-        android:layout_gravity="bottom"
-        android:background="@drawable/bg_bottom_nav"
-        android:elevation="8dp"
-        app:itemIconTint="@color/bottom_nav_color"
-        app:itemTextColor="@color/bottom_nav_color"
-        app:labelVisibilityMode="labeled"
-        app:itemIconSize="24dp"
-        app:itemPaddingTop="8dp"
-        app:itemPaddingBottom="8dp"
-        app:menu="@menu/bottom_nav_menu" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -3,6 +3,6 @@
     <item
         android:drawable="@drawable/logo_swiftbank_new"
         android:gravity="center"
-        android:width="200dp"
-        android:height="200dp" />
+        android:width="112dp"
+        android:height="112dp" />
 </layer-list>

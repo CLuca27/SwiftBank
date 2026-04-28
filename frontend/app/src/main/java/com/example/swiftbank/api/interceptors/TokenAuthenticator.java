@@ -9,8 +9,8 @@ import androidx.annotation.Nullable;
 
 import com.example.swiftbank.api.dto.request.RefreshRequest;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.api.dto.response.data.RefreshData;
-import com.example.swiftbank.storage.AuthTokenManager;
+import com.example.swiftbank.api.dto.response.data.success.RefreshData;
+import com.example.swiftbank.managers.AuthTokenManager;
 import com.example.swiftbank.utils.DeviceDetails;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;

@@ -350,7 +350,7 @@ async function executeTransfer(userId, params) {
         reference: reference,
         description: description || null,
         status: 'COMPLETED',
-        transfer_type: isInternal ? 'INTERNAL' : 'EXTERNAL',
+        transfer_type: isInternal ? (toAccount && toAccount.user_id === userId ? 'SELF' : 'INTERNAL') : 'EXTERNAL',
         scheduled_date: now.toISOString().split('T')[0],
         completed_at: now.toISOString()
     };
@@ -426,7 +426,7 @@ async function executeTransfer(userId, params) {
         original_amount: originalAmount,
         original_currency: originalCurrency,
         exchange_rate: exchangeRate,
-        transfer_type: isInternal ? 'INTERNAL' : 'EXTERNAL',
+        transfer_type: isInternal ? (toAccount && toAccount.user_id === userId ? 'SELF' : 'INTERNAL') : 'EXTERNAL',
         status: 'COMPLETED',
         created_at: transfer.created_at
     };

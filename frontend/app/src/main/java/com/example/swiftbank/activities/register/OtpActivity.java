@@ -24,7 +24,7 @@ import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.response.data.error.ErrorData;
 import com.example.swiftbank.api.dto.response.data.error.OtpCooldownErrorData;
-import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.views.ParticlesView;
 
 import retrofit2.Call;

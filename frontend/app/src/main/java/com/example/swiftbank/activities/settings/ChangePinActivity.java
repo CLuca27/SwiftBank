@@ -26,8 +26,8 @@ import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.request.ChangePinRequest;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
-import com.example.swiftbank.storage.BiometricCredentialsManager;
-import com.example.swiftbank.utils.ErrorParser;
+import com.example.swiftbank.managers.BiometricCredentialsManager;
+import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.utils.SwiftBankDialog;
 import com.example.swiftbank.views.ParticlesView;
 

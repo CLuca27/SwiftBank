@@ -7,6 +7,7 @@ import transactionService from './transaction-service.js'
 import accountService from './account-service.js'
 import transferService from './transfer-service.js'
 import notificationService from './notification-service.js'
+import cardService from './card-service.js'
 
 
 export default {
@@ -18,5 +19,6 @@ export default {
     transactionService,
     accountService,
     transferService,
-    notificationService
+    notificationService,
+    cardService
 }

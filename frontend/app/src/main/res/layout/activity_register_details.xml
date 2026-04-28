@@ -17,7 +17,7 @@
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_marginStart="20dp"
-        android:layout_marginTop="56dp"
+        android:layout_marginTop="16dp"
         android:background="@drawable/bg_icon_circle_subtle"
         android:clickable="true"
         android:focusable="true"
@@ -31,7 +31,7 @@
         android:id="@+id/scrollView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:fillViewport="true"
         android:scrollbars="none"
         app:layout_constraintTop_toBottomOf="@id/btnBack"
@@ -43,98 +43,98 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="32dp"
-            android:paddingBottom="140dp">
+            android:paddingHorizontal="24dp"
+            android:paddingBottom="100dp">
 
             <TextView
                 android:id="@+id/tvTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
-                android:lineSpacingExtra="6dp"
+                android:lineSpacingExtra="4dp"
                 android:text="Completează\ndatele personale"
                 android:textColor="@color/white"
-                android:textSize="28sp" />
+                android:textSize="24sp" />
 
             <TextView
                 android:id="@+id/tvSubtitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="8dp"
                 android:text="Introdu datele exact ca în actul de identitate"
                 android:textColor="@color/white_70"
-                android:textSize="15sp" />
+                android:textSize="14sp" />
 
             <EditText
                 android:id="@+id/etFirstName"
                 android:layout_width="match_parent"
-                android:layout_height="55dp"
-                android:layout_marginTop="32dp"
+                android:layout_height="50dp"
+                android:layout_marginTop="20dp"
                 android:background="@drawable/register_input_background"
                 android:hint="Prenume"
                 android:inputType="textPersonName|textCapWords"
-                android:paddingHorizontal="20dp"
+                android:paddingHorizontal="16dp"
                 android:textColor="@color/white"
                 android:textColorHint="@color/white_50"
-                android:textSize="16sp" />
+                android:textSize="15sp" />
 
             <EditText
                 android:id="@+id/etLastName"
                 android:layout_width="match_parent"
-                android:layout_height="55dp"
-                android:layout_marginTop="16dp"
+                android:layout_height="50dp"
+                android:layout_marginTop="12dp"
                 android:background="@drawable/register_input_background"
                 android:hint="Nume"
                 android:inputType="textPersonName|textCapWords"
-                android:paddingHorizontal="20dp"
+                android:paddingHorizontal="16dp"
                 android:textColor="@color/white"
                 android:textColorHint="@color/white_50"
-                android:textSize="16sp" />
+                android:textSize="15sp" />
 
             <EditText
                 android:id="@+id/etCnp"
                 android:layout_width="match_parent"
-                android:layout_height="55dp"
-                android:layout_marginTop="16dp"
+                android:layout_height="50dp"
+                android:layout_marginTop="12dp"
                 android:background="@drawable/register_input_background"
                 android:hint="CNP (13 cifre)"
                 android:inputType="number"
                 android:maxLength="13"
-                android:paddingHorizontal="20dp"
+                android:paddingHorizontal="16dp"
                 android:textColor="@color/white"
                 android:textColorHint="@color/white_50"
-                android:textSize="16sp" />
+                android:textSize="15sp" />
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:layout_marginTop="28dp"
+                android:layout_marginTop="20dp"
                 android:background="@color/white_20" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
+                android:layout_marginTop="16dp"
                 android:text="Adresa de domiciliu"
                 android:textColor="@color/white"
-                android:textSize="18sp"
+                android:textSize="16sp"
                 android:fontFamily="sans-serif-medium" />
 
             <EditText
                 android:id="@+id/etAddress"
                 android:layout_width="match_parent"
-                android:layout_height="55dp"
-                android:layout_marginTop="16dp"
+                android:layout_height="50dp"
+                android:layout_marginTop="12dp"
                 android:background="@drawable/register_input_background"
                 android:hint="Caută adresa..."
                 android:inputType="textPostalAddress"
-                android:paddingHorizontal="20dp"
+                android:paddingHorizontal="16dp"
                 android:drawableEnd="@drawable/ic_search"
                 android:drawableTint="@color/white_50"
                 android:drawablePadding="8dp"
                 android:textColor="@color/white"
                 android:textColorHint="@color/white_50"
-                android:textSize="16sp" />
+                android:textSize="15sp" />
 
             <LinearLayout
                 android:id="@+id/addressFieldsContainer"
@@ -142,12 +142,12 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone">
-                <EditText android:id="@+id/etStreet" android:layout_width="match_parent" android:layout_height="55dp" android:layout_marginTop="16dp" android:background="@drawable/register_input_background" android:hint="Stradă" android:focusable="false" android:paddingHorizontal="20dp" android:textColor="@color/white" android:textSize="16sp" />
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp">
-                    <EditText android:id="@+id/etCity" android:layout_width="0dp" android:layout_height="55dp" android:layout_weight="1" android:layout_marginEnd="8dp" android:background="@drawable/register_input_background" android:hint="Oraș" android:focusable="false" android:paddingHorizontal="20dp" android:textColor="@color/white" android:textSize="16sp" />
-                    <EditText android:id="@+id/etCounty" android:layout_width="0dp" android:layout_height="55dp" android:layout_weight="1" android:layout_marginStart="8dp" android:background="@drawable/register_input_background" android:hint="Județ" android:focusable="false" android:paddingHorizontal="20dp" android:textColor="@color/white" android:textSize="16sp" />
+                <EditText android:id="@+id/etStreet" android:layout_width="match_parent" android:layout_height="50dp" android:layout_marginTop="12dp" android:background="@drawable/register_input_background" android:hint="Stradă" android:focusable="false" android:paddingHorizontal="16dp" android:textColor="@color/white" android:textSize="15sp" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp">
+                    <EditText android:id="@+id/etCity" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:layout_marginEnd="6dp" android:background="@drawable/register_input_background" android:hint="Oraș" android:focusable="false" android:paddingHorizontal="16dp" android:textColor="@color/white" android:textSize="15sp" />
+                    <EditText android:id="@+id/etCounty" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:layout_marginStart="6dp" android:background="@drawable/register_input_background" android:hint="Județ" android:focusable="false" android:paddingHorizontal="16dp" android:textColor="@color/white" android:textSize="15sp" />
                 </LinearLayout>
-                <EditText android:id="@+id/etPostalCode" android:layout_width="150dp" android:layout_height="55dp" android:layout_marginTop="16dp" android:background="@drawable/register_input_background" android:hint="Cod poștal" android:focusable="false" android:paddingHorizontal="20dp" android:textColor="@color/white" android:textSize="16sp" />
+                <EditText android:id="@+id/etPostalCode" android:layout_width="140dp" android:layout_height="50dp" android:layout_marginTop="12dp" android:background="@drawable/register_input_background" android:hint="Cod poștal" android:focusable="false" android:paddingHorizontal="16dp" android:textColor="@color/white" android:textSize="15sp" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
@@ -156,11 +156,11 @@
         android:id="@+id/tvError"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="32dp"
-        android:layout_marginBottom="12dp"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="8dp"
         android:textAlignment="center"
         android:textColor="#FF5252"
-        android:textSize="14sp"
+        android:textSize="13sp"
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@id/btnContinue"
         app:layout_constraintEnd_toEndOf="parent"
@@ -191,9 +191,9 @@
     <Button
         android:id="@+id/btnContinue"
         android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:layout_marginHorizontal="32dp"
-        android:layout_marginBottom="32dp"
+        android:layout_height="52dp"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="20dp"
         android:alpha="0.5"
         android:background="@drawable/btn_primary"
         android:enabled="false"

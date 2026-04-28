@@ -30,11 +30,11 @@
                 android:layout_height="24dp"
                 android:layout_gravity="center"
                 tools:src="@drawable/ic_shopping"
-                app:tint="@color/text_secondary" />
+                app:tint="@color/white_60" />
 
         </androidx.cardview.widget.CardView>
 
-        <!-- Card pentru inițiale (transferuri către persoane) -->
+        <!-- Card pentru inițiale/poză (transferuri către persoane) -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardInitials"
             android:layout_width="44dp"
@@ -44,15 +44,28 @@
             app:cardElevation="0dp"
             app:cardBackgroundColor="@color/green_accent">
 
-            <TextView
-                android:id="@+id/tvInitials"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:textColor="@color/text_primary"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                tools:text="LC" />
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:id="@+id/tvInitials"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:text="LC" />
+
+                <ImageView
+                    android:id="@+id/ivSenderPhoto"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
+
+            </FrameLayout>
 
         </androidx.cardview.widget.CardView>
 
@@ -115,7 +128,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="@color/text_primary"
+            android:textColor="@color/white"
             android:textSize="15sp"
             android:textStyle="bold"
             tools:text="Kaufland" />
@@ -125,7 +138,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:textColor="@color/text_secondary"
+            android:textColor="@color/white_60"
             android:textSize="13sp"
             tools:text="Cumpărături" />
 
@@ -143,7 +156,7 @@
             android:id="@+id/tvAmount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="@color/text_primary"
+            android:textColor="@color/white"
             android:textSize="15sp"
             android:textStyle="bold"
             tools:text="-127,50 lei" />
@@ -154,7 +167,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:visibility="gone"
-            android:textColor="@color/text_secondary"
+            android:textColor="@color/white_60"
             android:textSize="12sp"
             tools:text="+25,00 €" />
 
@@ -164,7 +177,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:textColor="@color/text_hint"
+            android:textColor="@color/white_40"
             android:textSize="12sp"
             tools:text="14:32" />
 

@@ -23,7 +23,7 @@ async function getProfile(req, res) {
 
         const { data: user, error } = await config.supabase
             .from('users')
-            .select('user_id, email, phone, first_name, last_name, birth_date, address, created_at')
+            .select('user_id, email, phone, first_name, last_name, birth_date, address, profile_photo, created_at')
             .eq('user_id', userId)
             .single();
 
@@ -47,6 +47,7 @@ async function getProfile(req, res) {
                 last_name: user.last_name,
                 birth_date: user.birth_date,
                 address: user.address,
+                profile_photo: user.profile_photo,
                 created_at: user.created_at
             }
         });
@@ -58,6 +59,65 @@ async function getProfile(req, res) {
             error: {
                 code: 'INTERNAL_SERVER_ERROR',
                 message: 'Eroare la obținerea profilului'
+            }
+        });
+    }
+}
+
+async function updateProfile(req, res) {
+    try {
+        const userId = req.user.user_id;
+        const { first_name, last_name, profile_photo } = req.body;
+
+        // Construim obiectul de update doar cu câmpurile trimise
+        const updates = {};
+        if (first_name !== undefined) updates.first_name = first_name;
+        if (last_name !== undefined) updates.last_name = last_name;
+        if (profile_photo !== undefined) updates.profile_photo = profile_photo;
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'NO_DATA',
+                    message: 'Nu au fost trimise date pentru actualizare'
+                }
+            });
+        }
+
+        const { data: user, error } = await config.supabase
+            .from('users')
+            .update(updates)
+            .eq('user_id', userId)
+            .select('user_id, email, phone, first_name, last_name, birth_date, address, profile_photo, created_at')
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                user_id: user.user_id,
+                email: user.email,
+                phone: user.phone,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                birth_date: user.birth_date,
+                address: user.address,
+                profile_photo: user.profile_photo,
+                created_at: user.created_at
+            }
+        });
+
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        return res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Eroare la actualizarea profilului'
             }
         });
     }
@@ -250,6 +310,68 @@ async function unregisterDevice(req, res) {
     }
 }
 
+async function verifyPin(req, res) {
+    try {
+        const userId = req.user.user_id;
+        const { pin } = req.body;
+
+        if (!pin) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'MISSING_PIN',
+                    message: 'PIN-ul este obligatoriu'
+                }
+            });
+        }
+
+        // Obține user-ul cu password_hash
+        const { data: user, error: fetchError } = await config.supabase
+            .from('users')
+            .select('password_hash')
+            .eq('user_id', userId)
+            .single();
+
+        if (fetchError || !user) {
+            return res.status(404).json({
+                success: false,
+                error: {
+                    code: 'USER_NOT_FOUND',
+                    message: 'Utilizatorul nu a fost găsit'
+                }
+            });
+        }
+
+        // Verifică PIN-ul
+        const validPin = await services.authService.verifyPassword(pin, user.password_hash);
+
+        if (!validPin) {
+            return res.status(401).json({
+                success: false,
+                error: {
+                    code: 'INVALID_PIN',
+                    message: 'PIN incorect'
+                }
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'PIN verificat cu succes'
+        });
+
+    } catch (error) {
+        console.error('Error verifying PIN:', error);
+        return res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Eroare la verificarea PIN-ului'
+            }
+        });
+    }
+}
+
 async function changePin(req, res) {
     try {
         const userId = req.user.user_id;
@@ -369,9 +491,11 @@ function deepMerge(target, source) {
 
 export default {
     getProfile,
+    updateProfile,
     getSettings,
     updateSettings,
     registerDevice,
     unregisterDevice,
+    verifyPin,
     changePin
 };

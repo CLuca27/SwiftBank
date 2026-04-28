@@ -248,7 +248,7 @@ async function exchangeCurrency(userId, fromAccountId, toAccountId, amount, exch
             reference: reference,
             description: `Schimb ${fromAccount.currency.trim()} → ${toAccount.currency.trim()}`,
             status: 'COMPLETED',
-            transfer_type: 'INTERNAL',
+            transfer_type: 'SELF',
             scheduled_date: new Date().toISOString().split('T')[0],
             completed_at: new Date().toISOString()
         });
