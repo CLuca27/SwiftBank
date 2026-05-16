@@ -50,6 +50,27 @@ async function createCard(req, res) {
         });
     } catch (error) {
         console.error('Error creating card:', error);
+
+        if (error.code === 'CARD_LIMIT_REACHED') {
+            return res.status(409).json({
+                success: false,
+                error: {
+                    code: 'CARD_LIMIT_REACHED',
+                    message: 'Ai deja numarul maxim de carduri virtuale'
+                }
+            });
+        }
+
+        if (error.code === 'CARD_DESIGN_ALREADY_USED') {
+            return res.status(409).json({
+                success: false,
+                error: {
+                    code: 'CARD_DESIGN_ALREADY_USED',
+                    message: 'Ai deja un card cu acest design'
+                }
+            });
+        }
+
         return res.status(500).json({
             success: false,
             error: {
@@ -117,7 +138,7 @@ async function getCardDetails(req, res) {
             // Verificăm PIN-ul
             const validPin = await services.authService.verifyPassword(pin, user.password_hash);
             if (!validPin) {
-                return res.status(401).json({
+                return res.status(403).json({
                     success: false,
                     error: {
                         code: 'INVALID_PIN',

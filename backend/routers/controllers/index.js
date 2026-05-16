@@ -7,6 +7,9 @@ import account from "./account-controller.js";
 import user from "./user-controller.js";
 import transfer from "./transfer-controller.js";
 import card from "./card-controller.js";
+import bill from "./bill-controller.js";
+import cardPayment from "./card-payment-controller.js";
+import statistics from "./statistics-controller.js";
 
 
 export default {
@@ -18,5 +21,8 @@ export default {
     account,
     user,
     transfer,
-    card
+    card,
+    bill,
+    cardPayment,
+    statistics
 }

@@ -27,6 +27,7 @@ import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.response.data.success.TokenData;
 import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.api.dto.RegistrationData;
+import com.example.swiftbank.utils.DeviceDetails;
 import com.example.swiftbank.views.ParticlesView;
 
 import retrofit2.Call;
@@ -305,7 +306,9 @@ public class RegisterPinActivity extends AppCompatActivity {
                 registrationData.getFirstName(),
                 registrationData.getLastName(),
                 registrationData.getCnp(),
-                registrationData.getAddress()
+                registrationData.getAddress(),
+                DeviceDetails.getDeviceId(this),
+                DeviceDetails.getDeviceModel()
         );
 
         ApiClient.getAuthService().register(request).enqueue(new Callback<ApiResponse<TokenData>>() {
@@ -339,6 +342,9 @@ public class RegisterPinActivity extends AppCompatActivity {
                     tokenData.getAccessToken(),
                     tokenData.getRefreshToken()
             );
+
+            // Inregistreaza dispozitivul pentru notificari push
+            com.example.swiftbank.managers.FCMTokenManager.getInstance(this).registerDevice();
 
             // Navighează la Dashboard
             Intent intent = new Intent(this, DashboardActivity.class);

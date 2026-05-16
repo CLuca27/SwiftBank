@@ -17,7 +17,9 @@ import com.example.swiftbank.R;
 import com.example.swiftbank.adapters.CardAdapter;
 import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.request.CreateCardRequest;
+import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
+import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.api.dto.response.data.success.CardData;
 import com.example.swiftbank.api.dto.response.data.success.CardDetailsData;
 import com.example.swiftbank.api.dto.response.data.success.CardsData;
@@ -182,7 +184,7 @@ public class CardsActivity extends AppCompatActivity implements CardAdapter.OnCa
                     loadCards();
                 } else {
                     loadCards();
-                    Toast.makeText(CardsActivity.this, "Eroare la crearea cardului", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(CardsActivity.this, getCreateCardErrorMessage(response), Toast.LENGTH_SHORT).show();
                 }
             }
 
@@ -192,6 +194,14 @@ public class CardsActivity extends AppCompatActivity implements CardAdapter.OnCa
                 Toast.makeText(CardsActivity.this, "Eroare de conexiune", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private String getCreateCardErrorMessage(Response<ApiResponse<CardDetailsData>> response) {
+        ApiErrorResponse error = ErrorParser.parseError(response);
+        if (error != null && error.getError() != null && error.getError().getMessage() != null) {
+            return error.getError().getMessage();
+        }
+        return "Eroare la crearea cardului";
     }
 
     private void showNewCardSuccess(CardData card) {

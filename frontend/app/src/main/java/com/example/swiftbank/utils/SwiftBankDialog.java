@@ -156,4 +156,17 @@ public class SwiftBankDialog {
                 .setPrimaryButton("OK", null)
                 .show();
     }
+
+    public static void showConfirmDialog(Context context, String title, String message,
+                                         String confirmText, String cancelText, Runnable onConfirm) {
+        new SwiftBankDialog(context)
+                .setIcon(R.drawable.ic_info)
+                .setTitle(title)
+                .setMessage(message)
+                .setPrimaryButton(confirmText, v -> {
+                    if (onConfirm != null) onConfirm.run();
+                })
+                .setSecondaryButton(cancelText, null)
+                .show();
+    }
 }

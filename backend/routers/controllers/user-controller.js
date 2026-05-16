@@ -346,7 +346,7 @@ async function verifyPin(req, res) {
         const validPin = await services.authService.verifyPassword(pin, user.password_hash);
 
         if (!validPin) {
-            return res.status(401).json({
+            return res.status(403).json({
                 success: false,
                 error: {
                     code: 'INVALID_PIN',
@@ -435,7 +435,7 @@ async function changePin(req, res) {
         );
 
         if (!validPassword) {
-            return res.status(401).json({
+            return res.status(403).json({
                 success: false,
                 error: {
                     code: 'INVALID_PIN',

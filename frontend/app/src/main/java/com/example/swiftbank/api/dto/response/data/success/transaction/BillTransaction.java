@@ -17,18 +17,35 @@ public class BillTransaction extends Transaction {
     private String invoiceReference;
 
     public String getBillerName() {
-        return billerName;
+        return firstAvailable(billerName, title);
     }
 
     public String getBillerCategory() {
-        return billerCategory;
+        return firstAvailable(billerCategory, subtitle);
     }
 
     public String getClientCode() {
-        return clientCode;
+        return firstAvailable(clientCode, reference);
     }
 
     public String getInvoiceReference() {
-        return invoiceReference;
+        return firstAvailable(invoiceReference, description);
+    }
+
+    @Override
+    public String getStatus() {
+        if (status != null && !status.isEmpty()) {
+            return status;
+        }
+
+        return "COMPLETED";
+    }
+
+    private String firstAvailable(String primary, String fallback) {
+        if (primary != null && !primary.isEmpty()) {
+            return primary;
+        }
+
+        return fallback;
     }
 }

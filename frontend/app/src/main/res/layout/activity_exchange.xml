@@ -268,7 +268,7 @@
                             android:textColor="@color/text_primary"
                             android:textColorHint="@color/white_50"
                             android:textCursorDrawable="@null"
-                            android:textSize="32sp" />
+                            android:textSize="18sp" />
 
                         <TextView
                             android:id="@+id/tvErrorFrom"
@@ -385,7 +385,7 @@
                             android:textColor="@color/green_accent"
                             android:textColorHint="@color/green_accent_50"
                             android:textCursorDrawable="@null"
-                            android:textSize="32sp" />
+                            android:textSize="18sp" />
 
                         <TextView
                             android:id="@+id/tvErrorTo"

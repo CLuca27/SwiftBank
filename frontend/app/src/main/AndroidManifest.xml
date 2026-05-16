@@ -22,6 +22,9 @@
         android:theme="@style/Theme.SwiftBank"
         android:usesCleartextTraffic="true">
         <activity
+            android:name=".activities.login.SessionRevokedActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.login.BlockedUserActivity"
             android:exported="false" />
         <activity
@@ -38,6 +41,33 @@
             android:exported="false" />
         <activity
             android:name=".activities.transfer.TransferActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".activities.transfer.BeneficiariesActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.transfer.AddBeneficiaryActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".activities.transfer.TransferAmountActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".activities.send.SendOptionsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.bills.BillCategoriesActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.bills.SavedBillersActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.bills.BillersActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.bills.BillPaymentActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity
@@ -91,10 +121,16 @@
             android:name=".activities.cards.CardDesignActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.cards.CardPaymentApprovalActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.transactions.TransactionsActivity"
             android:exported="false" />
         <activity
             android:name=".activities.transactions.TransactionDetailsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.statistics.StatisticsActivity"
             android:exported="false" />
         <activity
             android:name=".activities.splash.SplashActivity"

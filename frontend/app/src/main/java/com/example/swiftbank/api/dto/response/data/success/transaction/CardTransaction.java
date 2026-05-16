@@ -7,8 +7,14 @@ public class CardTransaction extends Transaction {
     @SerializedName("merchant_name")
     private String merchantName;
 
+    @SerializedName("session_id")
+    private Integer sessionId;
+
     @SerializedName("location")
     private String location;
+
+    @SerializedName("masked_card")
+    private String maskedCard;
 
     @SerializedName("card_number_masked")
     private String cardNumberMasked;
@@ -25,12 +31,23 @@ public class CardTransaction extends Transaction {
     @SerializedName("settlement_date")
     private String settlementDate;
 
+    @SerializedName("expires_at")
+    private String expiresAt;
+
     public String getMerchantName() {
         return merchantName;
     }
 
+    public Integer getSessionId() {
+        return sessionId;
+    }
+
     public String getLocation() {
         return location;
+    }
+
+    public String getMaskedCard() {
+        return maskedCard;
     }
 
     public String getCardNumberMasked() {
@@ -51,6 +68,14 @@ public class CardTransaction extends Transaction {
 
     public String getSettlementDate() {
         return settlementDate;
+    }
+
+    public String getExpiresAt() {
+        return expiresAt;
+    }
+
+    public boolean isPendingApproval() {
+        return "CARD_PENDING_APPROVAL".equals(transactionType) || "PENDING_APPROVAL".equals(status);
     }
 
     public boolean hasCurrencyConversion() {

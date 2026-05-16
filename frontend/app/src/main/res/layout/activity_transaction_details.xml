@@ -157,6 +157,46 @@
 
                         </androidx.cardview.widget.CardView>
 
+                        <FrameLayout
+                            android:id="@+id/exchangeIconContainer"
+                            android:layout_width="72dp"
+                            android:layout_height="72dp"
+                            android:visibility="gone">
+
+                            <androidx.cardview.widget.CardView
+                                android:layout_width="46dp"
+                                android:layout_height="46dp"
+                                android:layout_gravity="top|start"
+                                app:cardCornerRadius="23dp"
+                                app:cardElevation="0dp">
+
+                                <ImageView
+                                    android:id="@+id/ivFlagFrom"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:scaleType="centerCrop"
+                                    android:src="@drawable/flag_ro" />
+
+                            </androidx.cardview.widget.CardView>
+
+                            <androidx.cardview.widget.CardView
+                                android:layout_width="46dp"
+                                android:layout_height="46dp"
+                                android:layout_gravity="bottom|end"
+                                app:cardCornerRadius="23dp"
+                                app:cardElevation="0dp">
+
+                                <ImageView
+                                    android:id="@+id/ivFlagTo"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:scaleType="centerCrop"
+                                    android:src="@drawable/flag_eur" />
+
+                            </androidx.cardview.widget.CardView>
+
+                        </FrameLayout>
+
                     </FrameLayout>
 
                     <!-- Amount -->
@@ -350,6 +390,77 @@
 
                     </LinearLayout>
 
+                    <!-- Category -->
+                    <LinearLayout
+                        android:id="@+id/rowCategory"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="8dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Categorie"
+                            android:textColor="@color/white_60"
+                            android:textSize="14sp" />
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:id="@+id/ivCategoryIcon"
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:layout_marginEnd="6dp"
+                                android:src="@drawable/ic_category_shopping"
+                                app:tint="@color/white_60" />
+
+                            <TextView
+                                android:id="@+id/tvCategoryName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/white"
+                                android:textSize="14sp"
+                                tools:text="Cumpărături" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <!-- Card Reference -->
+                    <LinearLayout
+                        android:id="@+id/rowCardReference"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingVertical="8dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Referință"
+                            android:textColor="@color/white_60"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tvCardReference"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/white"
+                            android:textSize="14sp"
+                            tools:text="TXN-123456" />
+
+                    </LinearLayout>
+
                 </LinearLayout>
 
                 <!-- Transfer Info Section -->
@@ -399,6 +510,7 @@
 
                     <!-- IBAN -->
                     <LinearLayout
+                        android:id="@+id/rowIban"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
@@ -505,6 +617,50 @@
 
                     </LinearLayout>
 
+                    <!-- Transfer Category -->
+                    <LinearLayout
+                        android:id="@+id/rowTransferCategory"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="8dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Tip"
+                            android:textColor="@color/white_60"
+                            android:textSize="14sp" />
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:id="@+id/ivTransferCategoryIcon"
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:layout_marginEnd="6dp"
+                                android:src="@drawable/ic_exchange"
+                                app:tint="@color/white_60" />
+
+                            <TextView
+                                android:id="@+id/tvTransferCategory"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/white"
+                                android:textSize="14sp"
+                                tools:text="Schimb valutar" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
                 </LinearLayout>
 
                 <!-- Bill Info Section -->
@@ -556,6 +712,7 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
                         android:orientation="horizontal"
                         android:paddingVertical="8dp">
 
@@ -567,13 +724,29 @@
                             android:textColor="@color/white_60"
                             android:textSize="14sp" />
 
-                        <TextView
-                            android:id="@+id/tvBillerCategory"
+                        <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:textColor="@color/white"
-                            android:textSize="14sp"
-                            tools:text="Utilități" />
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:id="@+id/ivBillerCategoryIcon"
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:layout_marginEnd="6dp"
+                                android:src="@drawable/ic_category_utilities"
+                                app:tint="@color/white_60" />
+
+                            <TextView
+                                android:id="@+id/tvBillerCategory"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/white"
+                                android:textSize="14sp"
+                                tools:text="Utilități" />
+
+                        </LinearLayout>
 
                     </LinearLayout>
 
@@ -673,6 +846,33 @@
                             android:textColor="@color/white"
                             android:textSize="14sp"
                             tools:text="10,00 €" />
+
+                    </LinearLayout>
+
+                    <!-- Exchange rate -->
+                    <LinearLayout
+                        android:id="@+id/rowExchangeRate"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingVertical="8dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Curs valutar"
+                            android:textColor="@color/white_60"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tvExchangeRate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/white"
+                            android:textSize="14sp"
+                            tools:text="1 RON = 0,1916 EUR" />
 
                     </LinearLayout>
 

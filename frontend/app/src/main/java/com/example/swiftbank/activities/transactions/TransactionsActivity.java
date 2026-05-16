@@ -1,7 +1,13 @@
 package com.example.swiftbank.activities.transactions;
 
 import android.content.Intent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -20,14 +26,21 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.swiftbank.R;
+import com.example.swiftbank.activities.cards.CardPaymentApprovalActivity;
 import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.response.data.success.AccountData;
 import com.example.swiftbank.api.dto.response.data.success.AccountsData;
+import com.example.swiftbank.api.dto.response.data.success.ProfileData;
 import com.example.swiftbank.api.dto.response.data.success.TransactionsData;
+import com.example.swiftbank.api.dto.response.data.success.transaction.BillTransaction;
 import com.example.swiftbank.api.dto.response.data.success.transaction.CardTransaction;
 import com.example.swiftbank.api.dto.response.data.success.transaction.Transaction;
 import com.example.swiftbank.api.dto.response.data.success.transaction.TransferTransaction;
+import com.example.swiftbank.managers.RealtimeManager;
+import com.example.swiftbank.utils.ExchangeTitleFormatter;
+import com.example.swiftbank.utils.RemoteImageLoader;
+import com.google.gson.JsonObject;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -48,9 +61,13 @@ public class TransactionsActivity extends AppCompatActivity {
 
     public static final String EXTRA_ACCOUNT_ID = "account_id";
     public static final String EXTRA_ACCOUNT_CURRENCY = "account_currency";
+    private static final int REQUEST_CARD_PAYMENT_APPROVAL = 2401;
+    private static final String ACTION_REFRESH_DATA = "com.example.swiftbank.REFRESH_DATA";
+    private static final long DATA_REFRESH_DEBOUNCE_MS = 350L;
 
-    private ImageView btnBack;
+    private ImageView btnBack, ivAccountFlag;
     private EditText etSearch;
+    private TextView tvAccountName;
     private RecyclerView rvTransactions;
     private LinearLayout loadingState, emptyState;
 
@@ -61,6 +78,34 @@ public class TransactionsActivity extends AppCompatActivity {
 
     private int accountId = -1;
     private String accountCurrency = "RON";
+    private int currentUserId = -1;
+    private boolean refreshReceiverRegistered = false;
+
+    // Pagination
+    private static final int PAGE_SIZE = 20;
+    private int currentOffset = 0;
+    private boolean hasMore = true;
+    private boolean isLoadingMore = false;
+    private RealtimeManager.RealtimeListener realtimeListener;
+    private boolean transactionsRequestInFlight = false;
+    private boolean queuedTransactionsRefresh = false;
+    private final Handler refreshHandler = new Handler(Looper.getMainLooper());
+    private final Runnable transactionsRefreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            refreshTransactionsNow();
+        }
+    };
+    private Call<ApiResponse<TransactionsData>> transactionsCall;
+
+    private final BroadcastReceiver refreshReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (accountId != -1) {
+                requestTransactionsRefresh();
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,6 +119,8 @@ public class TransactionsActivity extends AppCompatActivity {
         initViews();
         setupListeners();
         setupRecyclerView();
+        registerRefreshReceiver();
+        loadProfileForRealtime();
 
         if (accountId == -1) {
             loadDefaultAccount();
@@ -85,9 +132,29 @@ public class TransactionsActivity extends AppCompatActivity {
     private void initViews() {
         btnBack = findViewById(R.id.btnBack);
         etSearch = findViewById(R.id.etSearch);
+        ivAccountFlag = findViewById(R.id.ivAccountFlag);
+        tvAccountName = findViewById(R.id.tvAccountName);
         rvTransactions = findViewById(R.id.rvTransactions);
         loadingState = findViewById(R.id.loadingState);
         emptyState = findViewById(R.id.emptyState);
+
+        updateAccountDisplay();
+    }
+
+    private void updateAccountDisplay() {
+        tvAccountName.setText(accountCurrency);
+        ivAccountFlag.setImageResource(getFlagResource(accountCurrency));
+    }
+
+    private int getFlagResource(String currency) {
+        if (currency == null) return R.drawable.flag_ro;
+        switch (currency.trim().toUpperCase()) {
+            case "EUR": return R.drawable.flag_eur;
+            case "USD": return R.drawable.flag_usd;
+            case "GBP": return R.drawable.flag_gbp;
+            case "RON": return R.drawable.flag_ro;
+            default: return R.drawable.flag_ro;
+        }
     }
 
     private void setupListeners() {
@@ -109,8 +176,89 @@ public class TransactionsActivity extends AppCompatActivity {
 
     private void setupRecyclerView() {
         adapter = new TransactionsAdapter(filteredTransactionItems, this::onTransactionClick);
-        rvTransactions.setLayoutManager(new LinearLayoutManager(this));
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        rvTransactions.setLayoutManager(layoutManager);
         rvTransactions.setAdapter(adapter);
+
+        // Infinite scroll listener
+        rvTransactions.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+
+                if (dy > 0 && hasMore && !isLoadingMore && !transactionsRequestInFlight) {
+                    int visibleItemCount = layoutManager.getChildCount();
+                    int totalItemCount = layoutManager.getItemCount();
+                    int firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition();
+
+                    if ((visibleItemCount + firstVisibleItemPosition) >= totalItemCount - 3) {
+                        loadMoreTransactions();
+                    }
+                }
+            }
+        });
+    }
+
+    private void loadProfileForRealtime() {
+        ApiClient.getUserService().getProfile().enqueue(new Callback<ApiResponse<ProfileData>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<ProfileData>> call, Response<ApiResponse<ProfileData>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                    currentUserId = response.body().getData().getUserId();
+                    setupRealtimeSubscription();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<ProfileData>> call, Throwable t) {
+                // Realtime is optional here; manual/FCM refresh still works.
+            }
+        });
+    }
+
+    private void setupRealtimeSubscription() {
+        if (currentUserId == -1 || realtimeListener != null) return;
+
+        RealtimeManager realtime = RealtimeManager.getInstance();
+        realtime.connect();
+
+        realtimeListener = new RealtimeManager.RealtimeListener() {
+            @Override
+            public void onInsert(String table, JsonObject newRecord) {
+                refreshTransactionsFromRealtime();
+            }
+
+            @Override
+            public void onUpdate(String table, JsonObject oldRecord, JsonObject newRecord) {
+                refreshTransactionsFromRealtime();
+            }
+
+            @Override
+            public void onDelete(String table, JsonObject oldRecord) {
+                refreshTransactionsFromRealtime();
+            }
+        };
+
+        String userId = String.valueOf(currentUserId);
+        realtime.subscribeToUserChanges("accounts", userId, realtimeListener);
+        realtime.subscribeToUserChanges("card_payment_sessions", userId, realtimeListener);
+    }
+
+    private void refreshTransactionsFromRealtime() {
+        requestTransactionsRefresh();
+    }
+
+    private void requestTransactionsRefresh() {
+        refreshHandler.removeCallbacks(transactionsRefreshRunnable);
+        refreshHandler.postDelayed(transactionsRefreshRunnable, DATA_REFRESH_DEBOUNCE_MS);
+    }
+
+    private void refreshTransactionsNow() {
+        if (accountId == -1) {
+            loadDefaultAccount();
+        } else {
+            loadTransactions();
+        }
     }
 
     private void loadDefaultAccount() {
@@ -123,6 +271,7 @@ public class TransactionsActivity extends AppCompatActivity {
                     if (!accounts.isEmpty()) {
                         accountId = accounts.get(0).getAccountId();
                         accountCurrency = accounts.get(0).getCurrency();
+                        updateAccountDisplay();
                         loadTransactions();
                     } else {
                         showEmpty();
@@ -141,26 +290,118 @@ public class TransactionsActivity extends AppCompatActivity {
     }
 
     private void loadTransactions() {
+        if (transactionsRequestInFlight) {
+            queuedTransactionsRefresh = true;
+            return;
+        }
+
+        // Reset pagination
+        currentOffset = 0;
+        hasMore = true;
+        allTransactions.clear();
+        allTransactionItems.clear();
+
+        transactionsRequestInFlight = true;
         showLoading();
 
-        ApiClient.getTransactionService().getTransactions(accountId, 100, 0)
+        transactionsCall = ApiClient.getTransactionService().getTransactions(accountId, PAGE_SIZE, 0);
+        transactionsCall
                 .enqueue(new Callback<ApiResponse<TransactionsData>>() {
                     @Override
                     public void onResponse(Call<ApiResponse<TransactionsData>> call, Response<ApiResponse<TransactionsData>> response) {
+                        if (call.isCanceled()) {
+                            finishTransactionsRequest();
+                            return;
+                        }
+
                         if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
-                            List<Transaction> transactions = response.body().getData().getTransactions();
+                            TransactionsData data = response.body().getData();
+                            List<Transaction> transactions = data.getTransactions();
+
+                            if (data.getPagination() != null) {
+                                hasMore = data.getPagination().hasMore();
+                            } else {
+                                hasMore = transactions.size() >= PAGE_SIZE;
+                            }
+                            currentOffset = transactions.size();
+
                             processTransactions(transactions);
                         } else {
                             showEmpty();
                         }
+                        finishTransactionsRequest();
                     }
 
                     @Override
                     public void onFailure(Call<ApiResponse<TransactionsData>> call, Throwable t) {
+                        if (call.isCanceled()) {
+                            finishTransactionsRequest();
+                            return;
+                        }
                         showEmpty();
                         Toast.makeText(TransactionsActivity.this, "Eroare de conexiune", Toast.LENGTH_SHORT).show();
+                        finishTransactionsRequest();
                     }
                 });
+    }
+
+    private void loadMoreTransactions() {
+        if (isLoadingMore || !hasMore) return;
+
+        isLoadingMore = true;
+
+        // Add loading skeleton
+        filteredTransactionItems.add(new LoadingSkeleton());
+        adapter.notifyItemInserted(filteredTransactionItems.size() - 1);
+
+        ApiClient.getTransactionService().getTransactions(accountId, PAGE_SIZE, currentOffset)
+                .enqueue(new Callback<ApiResponse<TransactionsData>>() {
+                    @Override
+                    public void onResponse(Call<ApiResponse<TransactionsData>> call, Response<ApiResponse<TransactionsData>> response) {
+                        // Remove loading skeleton
+                        int skeletonIndex = filteredTransactionItems.size() - 1;
+                        if (skeletonIndex >= 0 && filteredTransactionItems.get(skeletonIndex) instanceof LoadingSkeleton) {
+                            filteredTransactionItems.remove(skeletonIndex);
+                            adapter.notifyItemRemoved(skeletonIndex);
+                        }
+
+                        if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                            TransactionsData data = response.body().getData();
+                            List<Transaction> newTransactions = data.getTransactions();
+
+                            if (data.getPagination() != null) {
+                                hasMore = data.getPagination().hasMore();
+                            } else {
+                                hasMore = newTransactions.size() >= PAGE_SIZE;
+                            }
+                            currentOffset += newTransactions.size();
+
+                            appendTransactions(newTransactions);
+                        }
+                        isLoadingMore = false;
+                    }
+
+                    @Override
+                    public void onFailure(Call<ApiResponse<TransactionsData>> call, Throwable t) {
+                        // Remove loading skeleton
+                        int skeletonIndex = filteredTransactionItems.size() - 1;
+                        if (skeletonIndex >= 0 && filteredTransactionItems.get(skeletonIndex) instanceof LoadingSkeleton) {
+                            filteredTransactionItems.remove(skeletonIndex);
+                            adapter.notifyItemRemoved(skeletonIndex);
+                        }
+                        isLoadingMore = false;
+                    }
+                });
+    }
+
+    private void finishTransactionsRequest() {
+        transactionsRequestInFlight = false;
+        transactionsCall = null;
+
+        if (queuedTransactionsRefresh) {
+            queuedTransactionsRefresh = false;
+            requestTransactionsRefresh();
+        }
     }
 
     private void processTransactions(List<Transaction> transactions) {
@@ -203,6 +444,73 @@ public class TransactionsActivity extends AppCompatActivity {
         } else {
             showContent();
         }
+    }
+
+    private void appendTransactions(List<Transaction> newTransactions) {
+        if (newTransactions.isEmpty()) return;
+
+        allTransactions.addAll(newTransactions);
+
+        int insertPosition = filteredTransactionItems.size();
+        String lastDateGroup = null;
+
+        // Find the last date header
+        for (int i = filteredTransactionItems.size() - 1; i >= 0; i--) {
+            Object item = filteredTransactionItems.get(i);
+            if (item instanceof DateHeader) {
+                lastDateGroup = ((DateHeader) item).date;
+                break;
+            }
+        }
+
+        Map<String, List<Transaction>> groupedByDate = new HashMap<>();
+        Map<String, Double> dailyTotals = new HashMap<>();
+        List<String> dateOrder = new ArrayList<>();
+
+        for (Transaction t : newTransactions) {
+            String dateGroup = getDateGroup(t.getCreatedAt());
+
+            if (!groupedByDate.containsKey(dateGroup)) {
+                groupedByDate.put(dateGroup, new ArrayList<>());
+                dailyTotals.put(dateGroup, 0.0);
+                dateOrder.add(dateGroup);
+            }
+
+            groupedByDate.get(dateGroup).add(t);
+            dailyTotals.put(dateGroup, dailyTotals.get(dateGroup) + t.getAmount());
+        }
+
+        List<Object> newItems = new ArrayList<>();
+
+        for (String dateGroup : dateOrder) {
+            // If same date group as last, merge transactions without adding new header
+            if (dateGroup.equals(lastDateGroup)) {
+                // Update the existing header's total
+                for (int i = filteredTransactionItems.size() - 1; i >= 0; i--) {
+                    Object item = filteredTransactionItems.get(i);
+                    if (item instanceof DateHeader && ((DateHeader) item).date.equals(dateGroup)) {
+                        DateHeader header = (DateHeader) item;
+                        header.total += dailyTotals.get(dateGroup);
+                        adapter.notifyItemChanged(i);
+                        break;
+                    }
+                }
+            } else {
+                newItems.add(new DateHeader(dateGroup, dailyTotals.get(dateGroup), accountCurrency));
+                allTransactionItems.add(new DateHeader(dateGroup, dailyTotals.get(dateGroup), accountCurrency));
+            }
+
+            for (Transaction t : groupedByDate.get(dateGroup)) {
+                TransactionItem transactionItem = createTransactionItem(t);
+                newItems.add(transactionItem);
+                allTransactionItems.add(transactionItem);
+            }
+
+            lastDateGroup = dateGroup;
+        }
+
+        filteredTransactionItems.addAll(newItems);
+        adapter.notifyItemRangeInserted(insertPosition, newItems.size());
     }
 
     private void filterTransactions(String query) {
@@ -256,8 +564,10 @@ public class TransactionsActivity extends AppCompatActivity {
     private TransactionItem createTransactionItem(Transaction t) {
         String time = formatTime(t.getCreatedAt());
         int iconRes = getIconForTransaction(t);
+        int iconColor = getIconColorForTransaction(t);
         String initials = null;
         String senderPhoto = null;
+        String merchantLogoUrl = null;
         boolean isExchange = false;
         double secondaryAmount = 0;
         String secondaryCurrency = null;
@@ -287,16 +597,24 @@ public class TransactionsActivity extends AppCompatActivity {
             }
         }
 
+        if ("CARD".equals(t.getTransactionType())
+                || "CARD_PENDING_APPROVAL".equals(t.getTransactionType())
+                || "BILL".equals(t.getTransactionType())) {
+            merchantLogoUrl = t.getMerchantLogoUrl();
+        }
+
         return new TransactionItem(
                 t,
                 t.getTitle(),
-                t.getSubtitle(),
+                getDisplaySubtitle(t),
                 t.getAmount(),
                 t.getCurrency() != null ? t.getCurrency() : accountCurrency,
                 time,
                 iconRes,
+                iconColor,
                 initials,
                 senderPhoto,
+                merchantLogoUrl,
                 isExchange,
                 secondaryAmount,
                 secondaryCurrency,
@@ -306,11 +624,43 @@ public class TransactionsActivity extends AppCompatActivity {
     }
 
     private void onTransactionClick(TransactionItem item) {
+        if (item.transaction instanceof CardTransaction) {
+            CardTransaction cardTransaction = (CardTransaction) item.transaction;
+            if (cardTransaction.isPendingApproval()) {
+                openCardPaymentApproval(cardTransaction);
+                return;
+            }
+        }
+
         Intent intent = new Intent(this, TransactionDetailsActivity.class);
         intent.putExtra(TransactionDetailsActivity.EXTRA_TRANSACTION_ID, item.transaction.getId());
         intent.putExtra(TransactionDetailsActivity.EXTRA_TRANSACTION_TYPE, item.transaction.getTransactionType());
         intent.putExtra(TransactionDetailsActivity.EXTRA_ACCOUNT_CURRENCY, accountCurrency);
         startActivity(intent);
+    }
+
+    private void openCardPaymentApproval(CardTransaction transaction) {
+        Intent intent = new Intent(this, CardPaymentApprovalActivity.class);
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_SESSION_ID,
+                transaction.getSessionId() != null ? transaction.getSessionId() : transaction.getId());
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_MERCHANT_NAME,
+                transaction.getMerchantName() != null ? transaction.getMerchantName() : transaction.getTitle());
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_MERCHANT_LOCATION, transaction.getLocation());
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_AMOUNT, Math.abs(transaction.getAmount()));
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_CURRENCY,
+                transaction.getCurrency() != null ? transaction.getCurrency() : accountCurrency);
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_MASKED_CARD,
+                transaction.getMaskedCard() != null ? transaction.getMaskedCard() : transaction.getCardNumberMasked());
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_EXPIRES_AT, transaction.getExpiresAt());
+        startActivityForResult(intent, REQUEST_CARD_PAYMENT_APPROVAL);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CARD_PAYMENT_APPROVAL && resultCode == RESULT_OK) {
+            requestTransactionsRefresh();
+        }
     }
 
     private void showLoading() {
@@ -398,10 +748,287 @@ public class TransactionsActivity extends AppCompatActivity {
             case "TRANSFER_OUT":
                 return R.drawable.ic_transfer_out;
             case "BILL":
-                return R.drawable.ic_payments;
+                if (t instanceof BillTransaction) {
+                    BillTransaction bill = (BillTransaction) t;
+                    return getBillIconForCategory(bill.getBillerCategory());
+                }
+                return getBillIconForCategory(t.getSubtitle());
+            case "CARD_PENDING_APPROVAL":
+                return getCategoryIconForTransaction(t, R.drawable.ic_card);
             case "CARD":
             default:
-                return R.drawable.ic_shopping;
+                return getCategoryIconForTransaction(t, R.drawable.ic_shopping);
+        }
+    }
+
+    private int getBillIconForCategory(String category) {
+        if (category == null) return R.drawable.ic_receipt;
+        switch (category.toLowerCase()) {
+            case "utilities":
+                return R.drawable.ic_utilities;
+            case "telecom":
+                return R.drawable.ic_phone;
+            case "internet":
+                return R.drawable.ic_wifi;
+            case "tv":
+                return R.drawable.ic_tv;
+            case "insurance":
+                return R.drawable.ic_shield;
+            default:
+                return R.drawable.ic_receipt;
+        }
+    }
+
+    private int getCategoryIconForTransaction(Transaction transaction, int fallback) {
+        String iconName = transaction.getCategoryIcon();
+        if (iconName == null || iconName.trim().isEmpty()) {
+            iconName = transaction.getCategoryName();
+        }
+
+        switch (iconName.trim().toLowerCase(Locale.ROOT)) {
+            case "food":
+            case "ic_category_food":
+                return R.drawable.ic_category_food;
+            case "shopping":
+            case "ic_category_shopping":
+                return R.drawable.ic_category_shopping;
+            case "transport":
+            case "ic_category_transport":
+                return R.drawable.ic_category_transport;
+            case "entertainment":
+            case "ic_category_entertainment":
+                return R.drawable.ic_category_entertainment;
+            case "groceries":
+            case "ic_category_groceries":
+                return R.drawable.ic_category_groceries;
+            case "health":
+            case "ic_category_health":
+                return R.drawable.ic_category_health;
+            case "utilities":
+            case "ic_category_utilities":
+                return R.drawable.ic_category_utilities;
+            case "telecom":
+            case "ic_category_telecom":
+                return R.drawable.ic_phone;
+            case "internet":
+            case "ic_category_internet":
+                return R.drawable.ic_wifi;
+            case "tv":
+            case "ic_category_tv":
+                return R.drawable.ic_tv;
+            case "insurance":
+            case "ic_category_insurance":
+                return R.drawable.ic_shield;
+            case "travel":
+            case "ic_category_travel":
+                return R.drawable.ic_category_travel;
+            case "services":
+            case "ic_category_services":
+                return R.drawable.ic_category_services;
+            case "subscriptions":
+            case "ic_category_subscriptions":
+                return R.drawable.ic_category_entertainment;
+            case "other":
+            case "ic_category_other":
+                return R.drawable.ic_category_other;
+            default:
+                return fallback;
+        }
+    }
+
+    private int getCategoryColorForTransaction(Transaction transaction, int fallback) {
+        String categoryName = transaction.getCategoryName();
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            return fallback;
+        }
+
+        switch (categoryName.trim().toLowerCase(Locale.ROOT)) {
+            case "food":
+                return 0xFFF97316;
+            case "shopping":
+                return 0xFF8B5CF6;
+            case "transport":
+                return 0xFF3B82F6;
+            case "entertainment":
+                return 0xFFEC4899;
+            case "health":
+                return 0xFF10B981;
+            case "travel":
+                return 0xFF06B6D4;
+            case "services":
+                return 0xFF6366F1;
+            case "subscriptions":
+                return 0xFFF59E0B;
+            case "utilities":
+                return 0xFFF59E0B;
+            case "telecom":
+                return 0xFF3B82F6;
+            case "internet":
+                return 0xFF10B981;
+            case "tv":
+                return 0xFF8B5CF6;
+            case "insurance":
+                return 0xFFEF4444;
+            case "groceries":
+                return 0xFF22C55E;
+            case "other":
+            default:
+                return fallback != 0 ? fallback : 0xFF6B7280;
+        }
+    }
+
+    private String getCategoryDisplayNameForTransaction(Transaction transaction) {
+        String categoryName = transaction.getCategoryName();
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            return null;
+        }
+
+        switch (categoryName.trim().toLowerCase(Locale.ROOT)) {
+            case "food":
+                return "Mancare si bauturi";
+            case "shopping":
+                return "Cumparaturi";
+            case "transport":
+                return "Transport";
+            case "entertainment":
+                return "Divertisment";
+            case "groceries":
+                return "Supermarket";
+            case "health":
+                return "Sanatate";
+            case "utilities":
+                return "Utilitati";
+            case "telecom":
+                return "Telecom";
+            case "internet":
+                return "Internet";
+            case "tv":
+                return "TV & Cablu";
+            case "insurance":
+                return "Asigurari";
+            case "travel":
+                return "Calatorii";
+            case "services":
+                return "Servicii";
+            case "subscriptions":
+                return "Abonamente";
+            case "other":
+                return "Altele";
+            default:
+                return categoryName.substring(0, 1).toUpperCase(Locale.ROOT) + categoryName.substring(1);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        refreshHandler.removeCallbacks(transactionsRefreshRunnable);
+
+        if (transactionsCall != null) {
+            transactionsCall.cancel();
+            transactionsCall = null;
+        }
+
+        if (refreshReceiverRegistered) {
+            unregisterReceiver(refreshReceiver);
+            refreshReceiverRegistered = false;
+        }
+
+        if (realtimeListener != null && currentUserId != -1) {
+            RealtimeManager realtime = RealtimeManager.getInstance();
+            String userId = String.valueOf(currentUserId);
+            realtime.unsubscribeFromUserChanges("accounts", userId, realtimeListener);
+            realtime.unsubscribeFromUserChanges("card_payment_sessions", userId, realtimeListener);
+            realtimeListener = null;
+        }
+    }
+
+    private void registerRefreshReceiver() {
+        IntentFilter filter = new IntentFilter(ACTION_REFRESH_DATA);
+        ContextCompat.registerReceiver(this, refreshReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
+        refreshReceiverRegistered = true;
+    }
+
+    private int getIconColorForTransaction(Transaction transaction) {
+        if (transaction instanceof CardTransaction && ((CardTransaction) transaction).isPendingApproval()) {
+            return getCategoryColorForTransaction(transaction, 0xFFFF9500);
+        }
+
+        if ("CARD".equals(transaction.getTransactionType())) {
+            return getCategoryColorForTransaction(transaction, 0);
+        }
+
+        if (transaction instanceof BillTransaction) {
+            BillTransaction bill = (BillTransaction) transaction;
+            return getBillCategoryColor(bill.getBillerCategory());
+        }
+
+        return 0;
+    }
+
+    private int getBillCategoryColor(String category) {
+        if (category == null) return 0xFF6B7280;
+        switch (category.toLowerCase()) {
+            case "utilities":
+                return 0xFFF59E0B;
+            case "telecom":
+                return 0xFF3B82F6;
+            case "internet":
+                return 0xFF10B981;
+            case "tv":
+                return 0xFF8B5CF6;
+            case "insurance":
+                return 0xFFEF4444;
+            default:
+                return 0xFF6B7280;
+        }
+    }
+
+    private String getDisplaySubtitle(Transaction transaction) {
+        if (transaction instanceof CardTransaction && ((CardTransaction) transaction).isPendingApproval()) {
+            return "Asteapta confirmarea";
+        }
+
+        if (transaction instanceof BillTransaction) {
+            BillTransaction bill = (BillTransaction) transaction;
+            return getBillCategoryDisplayName(bill.getBillerCategory());
+        }
+
+        String subtitle = transaction.getSubtitle();
+        if ("CARD".equals(transaction.getTransactionType()) && "PENDING".equals(transaction.getStatus())) {
+            return "Suma blocata";
+        }
+
+        if ("CARD".equals(transaction.getTransactionType())) {
+            String categoryDisplayName = getCategoryDisplayNameForTransaction(transaction);
+            if (categoryDisplayName != null) {
+                return categoryDisplayName;
+            }
+        }
+
+        if ("CARD".equals(transaction.getTransactionType()) && (subtitle == null || subtitle.isEmpty())) {
+            return "Plată cu cardul";
+        }
+
+        return subtitle != null && !subtitle.isEmpty() ? subtitle : formatTime(transaction.getCreatedAt());
+    }
+
+    private String getBillCategoryDisplayName(String category) {
+        if (category == null || category.isEmpty()) return "Plată factură";
+
+        switch (category.toLowerCase()) {
+            case "utilities":
+                return "Utilități";
+            case "telecom":
+                return "Telecom";
+            case "internet":
+                return "Internet";
+            case "tv":
+                return "TV & Cablu";
+            case "insurance":
+                return "Asigurări";
+            default:
+                return category.substring(0, 1).toUpperCase() + category.substring(1);
         }
     }
 
@@ -435,6 +1062,8 @@ public class TransactionsActivity extends AppCompatActivity {
     }
 
     // Data classes
+    static class LoadingSkeleton {}
+
     static class DateHeader {
         String date;
         double total;
@@ -455,8 +1084,10 @@ public class TransactionsActivity extends AppCompatActivity {
         String currency;
         String time;
         int iconRes;
+        int iconColor;
         String initials;
         String senderPhoto;
+        String merchantLogoUrl;
         boolean isExchange;
         double secondaryAmount;
         String secondaryCurrency;
@@ -464,8 +1095,8 @@ public class TransactionsActivity extends AppCompatActivity {
         String toCurrency;
 
         TransactionItem(Transaction transaction, String title, String subtitle, double amount, String currency,
-                        String time, int iconRes, String initials, String senderPhoto,
-                        boolean isExchange, double secondaryAmount, String secondaryCurrency,
+                        String time, int iconRes, int iconColor, String initials, String senderPhoto,
+                        String merchantLogoUrl, boolean isExchange, double secondaryAmount, String secondaryCurrency,
                         String fromCurrency, String toCurrency) {
             this.transaction = transaction;
             this.title = title;
@@ -474,8 +1105,10 @@ public class TransactionsActivity extends AppCompatActivity {
             this.currency = currency;
             this.time = time;
             this.iconRes = iconRes;
+            this.iconColor = iconColor;
             this.initials = initials;
             this.senderPhoto = senderPhoto;
+            this.merchantLogoUrl = merchantLogoUrl;
             this.isExchange = isExchange;
             this.secondaryAmount = secondaryAmount;
             this.secondaryCurrency = secondaryCurrency;
@@ -488,6 +1121,7 @@ public class TransactionsActivity extends AppCompatActivity {
     class TransactionsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         private static final int TYPE_HEADER = 0;
         private static final int TYPE_TRANSACTION = 1;
+        private static final int TYPE_LOADING = 2;
 
         private List<Object> items;
         private OnTransactionClickListener listener;
@@ -503,7 +1137,10 @@ public class TransactionsActivity extends AppCompatActivity {
 
         @Override
         public int getItemViewType(int position) {
-            return items.get(position) instanceof DateHeader ? TYPE_HEADER : TYPE_TRANSACTION;
+            Object item = items.get(position);
+            if (item instanceof DateHeader) return TYPE_HEADER;
+            if (item instanceof LoadingSkeleton) return TYPE_LOADING;
+            return TYPE_TRANSACTION;
         }
 
         @NonNull
@@ -513,6 +1150,10 @@ public class TransactionsActivity extends AppCompatActivity {
                 View view = LayoutInflater.from(parent.getContext())
                         .inflate(R.layout.item_transaction_date_header, parent, false);
                 return new HeaderViewHolder(view);
+            } else if (viewType == TYPE_LOADING) {
+                View view = LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_transaction_skeleton, parent, false);
+                return new LoadingViewHolder(view);
             } else {
                 View view = LayoutInflater.from(parent.getContext())
                         .inflate(R.layout.item_transaction, parent, false);
@@ -524,8 +1165,15 @@ public class TransactionsActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             if (holder instanceof HeaderViewHolder) {
                 ((HeaderViewHolder) holder).bind((DateHeader) items.get(position));
-            } else {
+            } else if (holder instanceof TransactionViewHolder) {
                 ((TransactionViewHolder) holder).bind((TransactionItem) items.get(position));
+            }
+            // LoadingViewHolder needs no binding
+        }
+
+        class LoadingViewHolder extends RecyclerView.ViewHolder {
+            LoadingViewHolder(@NonNull View itemView) {
+                super(itemView);
             }
         }
 
@@ -590,9 +1238,12 @@ public class TransactionsActivity extends AppCompatActivity {
             }
 
             void bind(TransactionItem item) {
-                tvMerchantName.setText(item.title);
-                tvCategory.setText(item.time);
-                tvTime.setVisibility(View.GONE);
+                tvMerchantName.setText(item.isExchange
+                        ? ExchangeTitleFormatter.format(item.title, getResources().getDisplayMetrics().density)
+                        : item.title);
+                tvCategory.setText(item.subtitle);
+                tvTime.setText(item.time);
+                tvTime.setVisibility(View.VISIBLE);
 
                 String amountText;
                 if (item.amount >= 0) {
@@ -653,7 +1304,59 @@ public class TransactionsActivity extends AppCompatActivity {
                     cardIcon.setVisibility(View.VISIBLE);
                     if (cardInitials != null) cardInitials.setVisibility(View.GONE);
                     if (exchangeIconContainer != null) exchangeIconContainer.setVisibility(View.GONE);
+                    if (!applyMerchantLogoUrl(item)) {
+                        applyIconStyle(item);
+                        ivCategoryIcon.setImageResource(item.iconRes);
+                    }
+                }
+            }
+
+            private boolean applyMerchantLogoUrl(TransactionItem item) {
+                if (item.merchantLogoUrl == null || item.merchantLogoUrl.trim().isEmpty()) {
+                    return false;
+                }
+
+                if (cardIcon instanceof androidx.cardview.widget.CardView) {
+                    ((androidx.cardview.widget.CardView) cardIcon).setCardBackgroundColor(
+                            ContextCompat.getColor(TransactionsActivity.this, R.color.white));
+                }
+
+                androidx.core.widget.ImageViewCompat.setImageTintList(ivCategoryIcon, null);
+                ivCategoryIcon.clearColorFilter();
+                setIconImageSize(32);
+                ivCategoryIcon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+                return RemoteImageLoader.load(item.merchantLogoUrl, ivCategoryIcon, () -> {
+                    applyIconStyle(item);
                     ivCategoryIcon.setImageResource(item.iconRes);
+                });
+            }
+
+            private void applyIconStyle(TransactionItem item) {
+                ivCategoryIcon.setTag(null);
+                if (cardIcon instanceof androidx.cardview.widget.CardView) {
+                    int backgroundColor = item.iconColor != 0
+                            ? item.iconColor
+                            : ContextCompat.getColor(TransactionsActivity.this, R.color.white_10);
+                    ((androidx.cardview.widget.CardView) cardIcon).setCardBackgroundColor(backgroundColor);
+                }
+
+                int iconTint = item.iconColor != 0
+                        ? ContextCompat.getColor(TransactionsActivity.this, R.color.white)
+                        : ContextCompat.getColor(TransactionsActivity.this, R.color.white_60);
+                setIconImageSize(24);
+                ivCategoryIcon.setScaleType(ImageView.ScaleType.CENTER);
+                androidx.core.widget.ImageViewCompat.setImageTintList(
+                        ivCategoryIcon,
+                        android.content.res.ColorStateList.valueOf(iconTint));
+            }
+
+            private void setIconImageSize(int sizeDp) {
+                ViewGroup.LayoutParams params = ivCategoryIcon.getLayoutParams();
+                int sizePx = Math.round(sizeDp * getResources().getDisplayMetrics().density);
+                if (params.width != sizePx || params.height != sizePx) {
+                    params.width = sizePx;
+                    params.height = sizePx;
+                    ivCategoryIcon.setLayoutParams(params);
                 }
             }
 

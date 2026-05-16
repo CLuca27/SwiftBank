@@ -19,6 +19,15 @@ public class AccountData {
     @SerializedName("balance")
     private double balance;
 
+    @SerializedName("available_balance")
+    private double availableBalance;
+
+    @SerializedName("ledger_balance")
+    private double ledgerBalance;
+
+    @SerializedName("blocked_balance")
+    private double blockedBalance;
+
     public int getAccountId() {
         return accountId;
     }
@@ -37,5 +46,17 @@ public class AccountData {
 
     public double getBalance() {
         return balance;
+    }
+
+    public double getAvailableBalance() {
+        return availableBalance;
+    }
+
+    public double getLedgerBalance() {
+        return ledgerBalance;
+    }
+
+    public double getBlockedBalance() {
+        return blockedBalance;
     }
 }

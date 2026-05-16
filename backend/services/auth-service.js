@@ -34,14 +34,15 @@ async function verifyPassword(password, hash) {
     return await bcrypt.compare(password, hash);
 }
 
-function generateAccessToken(user) {
+function generateAccessToken(user, deviceId = null) {
     const payload = {
         user_id: user.user_id,
         email: user.email, 
         first_name: user.first_name,
         last_name: user.last_name,
         status: user.status,
-        type: 'access'
+        type: 'access',
+        device_id: deviceId
     };
     
     return jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
@@ -49,14 +50,15 @@ function generateAccessToken(user) {
     });
 }
 
-function generateRefreshToken(user) {
+function generateRefreshToken(user, deviceId = null) {
     const payload = {
         user_id: user.user_id, 
         user_email: user.email,
         user_first_name: user.first_name,
         user_last_name: user.last_name,
         user_status: user.status,
-        type: 'refresh'
+        type: 'refresh',
+        device_id: deviceId
     };
     
     return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {

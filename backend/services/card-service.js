@@ -120,6 +120,25 @@ async function createCard(userId, cardDesign = 'green') {
         cardDesign = 'green';
     }
 
+    const { data: existingCards, error: existingCardsError } = await config.supabase
+        .from('cards')
+        .select('card_id, card_design')
+        .eq('user_id', userId);
+
+    if (existingCardsError) throw existingCardsError;
+
+    if ((existingCards || []).length >= CARD_DESIGNS.length) {
+        const error = new Error('Card limit reached');
+        error.code = 'CARD_LIMIT_REACHED';
+        throw error;
+    }
+
+    if ((existingCards || []).some(card => card.card_design === cardDesign)) {
+        const error = new Error('Card design already used');
+        error.code = 'CARD_DESIGN_ALREADY_USED';
+        throw error;
+    }
+
     // Obținem numele utilizatorului pentru card_holder_name
     const { data: user, error: userError } = await config.supabase
         .from('users')

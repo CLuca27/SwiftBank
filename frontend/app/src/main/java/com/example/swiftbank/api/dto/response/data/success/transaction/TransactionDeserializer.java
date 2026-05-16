@@ -24,6 +24,7 @@ public class TransactionDeserializer implements JsonDeserializer<Transaction> {
 
         switch (type) {
             case "CARD":
+            case "CARD_PENDING_APPROVAL":
                 return context.deserialize(json, CardTransaction.class);
 
             case "TRANSFER_IN":

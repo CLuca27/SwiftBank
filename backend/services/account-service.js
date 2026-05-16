@@ -1,6 +1,78 @@
 import supabase from '../config/supabase.js';
+import crypto from 'crypto';
 
 const BANK_CODE = 'SWFT';
+const EXCHANGE_ENDPOINT = 'POST /api/accounts/exchange';
+const IDEMPOTENCY_EXPIRY_HOURS = 24;
+
+function shouldRetryIdempotencyInsertWithKeyId(error) {
+    return error?.code === '23502' && String(error.message || '').includes('key_id');
+}
+
+async function insertIdempotencyRecord(record, logContext) {
+    let { error } = await supabase
+        .from('idempotency_keys')
+        .insert(record);
+
+    if (shouldRetryIdempotencyInsertWithKeyId(error)) {
+        ({ error } = await supabase
+            .from('idempotency_keys')
+            .insert({
+                key_id: crypto.randomInt(1, 2147483647),
+                ...record
+            }));
+    }
+
+    if (error) {
+        console.error(logContext, error);
+    }
+}
+
+async function checkExchangeIdempotency(userId, idempotencyKey) {
+    if (!userId || !idempotencyKey) return null;
+
+    const { data, error } = await supabase
+        .from('idempotency_keys')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('idempotency_key', idempotencyKey)
+        .eq('endpoint', EXCHANGE_ENDPOINT)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Error checking exchange idempotency:', error);
+        return null;
+    }
+
+    return data;
+}
+
+async function saveExchangeIdempotency(userId, idempotencyKey, responseStatus, responseBody) {
+    if (!userId || !idempotencyKey) return;
+
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + IDEMPOTENCY_EXPIRY_HOURS);
+
+    await insertIdempotencyRecord({
+        user_id: userId,
+        idempotency_key: idempotencyKey,
+        endpoint: EXCHANGE_ENDPOINT,
+        response_status: responseStatus,
+        response_body: responseBody,
+        expires_at: expiresAt.toISOString()
+    }, 'Error saving exchange idempotency:');
+}
+
+function parseAmount(value) {
+    return parseFloat(value || 0);
+}
+
+function getAvailableBalance(account) {
+    return parseAmount(account.balance) - parseAmount(account.blocked_balance);
+}
 
 /**
  * Genereaza un IBAN romanesc valid
@@ -87,7 +159,7 @@ async function hasAccountInCurrency(userId, currency) {
 async function getAccountsByUserId(userId) {
     const { data, error } = await supabase
         .from('accounts')
-        .select('account_id, iban, account_type, currency, balance, status, created_at')
+        .select('account_id, iban, account_type, currency, balance, blocked_balance, status, created_at')
         .eq('user_id', userId)
         .eq('status', 'ACTIVE')
         .order('created_at', { ascending: true });
@@ -166,9 +238,22 @@ async function updateBalance(accountId, newBalance) {
  * @returns {new_balance, success}
  */
 async function adjustBalance(accountId, amount) {
+    const numericAmount = parseAmount(amount);
+
+    if (numericAmount < 0) {
+        const account = await getAccountById(accountId);
+        if (!account) {
+            throw new Error('ACCOUNT_NOT_FOUND');
+        }
+
+        if (getAvailableBalance(account) < Math.abs(numericAmount)) {
+            throw new Error('INSUFFICIENT_FUNDS');
+        }
+    }
+
     const { data, error } = await supabase.rpc('adjust_balance', {
         p_account_id: accountId,
-        p_amount: amount
+        p_amount: numericAmount
     });
 
     if (error) {
@@ -214,8 +299,9 @@ async function exchangeCurrency(userId, fromAccountId, toAccountId, amount, exch
     }
 
     // Verifica balanta
-    const currentBalance = parseFloat(fromAccount.balance);
-    if (currentBalance < amount) {
+    const currentBalance = parseAmount(fromAccount.balance);
+    const availableBalance = getAvailableBalance(fromAccount);
+    if (availableBalance < amount) {
         throw new Error('INSUFFICIENT_FUNDS');
     }
 
@@ -224,7 +310,7 @@ async function exchangeCurrency(userId, fromAccountId, toAccountId, amount, exch
 
     // Actualizeaza balantele
     const newFromBalance = currentBalance - amount;
-    const newToBalance = parseFloat(toAccount.balance) + convertedAmount;
+    const newToBalance = parseAmount(toAccount.balance) + convertedAmount;
 
     await updateBalance(fromAccountId, newFromBalance);
     await updateBalance(toAccountId, newToBalance);
@@ -269,11 +355,110 @@ async function exchangeCurrency(userId, fromAccountId, toAccountId, amount, exch
         toAccount: {
             account_id: toAccount.account_id,
             currency: toAccount.currency.trim(),
-            oldBalance: parseFloat(toAccount.balance),
+            oldBalance: parseAmount(toAccount.balance),
             newBalance: newToBalance,
             amount: convertedAmount
         },
         exchangeRate: exchangeRate
+    };
+}
+
+/**
+ * Obține un cont după ID, verificând că aparține userului
+ */
+async function getAccountByIdForUser(userId, accountId) {
+    const { data, error } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('account_id', accountId)
+        .eq('user_id', userId)
+        .eq('status', 'ACTIVE')
+        .single();
+
+    if (error) {
+        return null;
+    }
+
+    return data;
+}
+
+/**
+ * Blochează o sumă în cont ATOMIC (pentru plăți cu cardul)
+ * Folosește RPC pentru a preveni race conditions
+ */
+async function blockAmount(accountId, amount) {
+    const numericAmount = parseAmount(amount);
+
+    const { data, error } = await supabase.rpc('block_amount', {
+        p_account_id: accountId,
+        p_amount: numericAmount
+    });
+
+    if (error) {
+        console.error('Error blocking amount:', error);
+        throw error;
+    }
+
+    const result = data[0];
+
+    if (!result.success) {
+        throw new Error(result.error_code || 'INSUFFICIENT_FUNDS');
+    }
+
+    return {
+        blocked_balance: parseFloat(result.blocked_balance),
+        available_balance: parseFloat(result.available_balance)
+    };
+}
+
+/**
+ * Deblochează o sumă din cont ATOMIC
+ */
+async function unblockAmount(accountId, amount) {
+    const numericAmount = parseAmount(amount);
+
+    const { data, error } = await supabase.rpc('unblock_amount', {
+        p_account_id: accountId,
+        p_amount: numericAmount
+    });
+
+    if (error) {
+        console.error('Error unblocking amount:', error);
+        throw error;
+    }
+
+    const result = data[0];
+
+    return {
+        blocked_balance: parseFloat(result.blocked_balance)
+    };
+}
+
+/**
+ * Settlement ATOMIC: deblochează și deduce suma (pentru finalizare plată card)
+ */
+async function settleBlockedAmount(accountId, amount) {
+    const numericAmount = parseAmount(amount);
+
+    const { data, error } = await supabase.rpc('settle_blocked_amount', {
+        p_account_id: accountId,
+        p_amount: numericAmount
+    });
+
+    if (error) {
+        console.error('Error settling amount:', error);
+        throw error;
+    }
+
+    const result = data[0];
+
+    if (!result.success) {
+        throw new Error(result.error_code || 'BLOCKED_AMOUNT_MISMATCH');
+    }
+
+    return {
+        balance: parseFloat(result.balance),
+        blocked_balance: parseFloat(result.blocked_balance)
     };
 }
 
@@ -282,9 +467,16 @@ export default {
     createAccount,
     hasAccountInCurrency,
     getAccountsByUserId,
+    getAccounts: getAccountsByUserId,
     verifyAccountOwnership,
     getAccountById,
+    getAccountByIdForUser,
     updateBalance,
     adjustBalance,
-    exchangeCurrency
+    exchangeCurrency,
+    blockAmount,
+    unblockAmount,
+    settleBlockedAmount,
+    checkExchangeIdempotency,
+    saveExchangeIdempotency
 };

@@ -22,6 +22,7 @@ import androidx.cardview.widget.CardView;
 import androidx.core.splashscreen.SplashScreen;
 
 import com.example.swiftbank.R;
+import com.example.swiftbank.activities.login.BlockedUserActivity;
 import com.example.swiftbank.activities.login.LoginPinActivity;
 import com.example.swiftbank.activities.welcome.WelcomeActivity;
 import com.example.swiftbank.api.ApiClient;
@@ -168,6 +169,7 @@ public class SplashActivity extends AppCompatActivity {
             if (data.getUser() != null) {
                 intent.putExtra("email", data.getUser().getEmail());
                 intent.putExtra("first_name", data.getUser().getFirstName());
+                intent.putExtra("locked_until", data.getUser().getLockedUntil());
             }
             navigateToLoginPin(intent);
         } else {
@@ -203,7 +205,7 @@ public class SplashActivity extends AppCompatActivity {
 
             if ("ACCOUNT_BLOCKED".equals(errorCode)) {
                 Log.d(TAG, "Account is blocked");
-                navigateWithDelay(WelcomeActivity.class);
+                navigateWithDelay(BlockedUserActivity.class);
                 return;
             }
         }
@@ -267,13 +269,17 @@ public class SplashActivity extends AppCompatActivity {
         ObjectAnimator dot2Fade = ObjectAnimator.ofFloat(dot2, "alpha", 0f, 1f);
         ObjectAnimator dot3Fade = ObjectAnimator.ofFloat(dot3, "alpha", 0f, 1f);
 
-        dot1Fade.setDuration(300);
-        dot2Fade.setDuration(300);
-        dot3Fade.setDuration(300);
+        dot1Fade.setDuration(350);
+        dot2Fade.setDuration(350);
+        dot3Fade.setDuration(350);
+
+        dot1Fade.setInterpolator(new AccelerateDecelerateInterpolator());
+        dot2Fade.setInterpolator(new AccelerateDecelerateInterpolator());
+        dot3Fade.setInterpolator(new AccelerateDecelerateInterpolator());
 
         dot1Fade.setStartDelay(0);
-        dot2Fade.setStartDelay(150);
-        dot3Fade.setStartDelay(300);
+        dot2Fade.setStartDelay(250);
+        dot3Fade.setStartDelay(500);
 
         AnimatorSet fadeIn = new AnimatorSet();
         fadeIn.playTogether(dot1Fade, dot2Fade, dot3Fade);

@@ -8,6 +8,9 @@ import accountService from './account-service.js'
 import transferService from './transfer-service.js'
 import notificationService from './notification-service.js'
 import cardService from './card-service.js'
+import billService from './bill-service.js'
+import cardPaymentService from './card-payment-service.js'
+import merchantService from './merchant-service.js'
 
 
 export default {
@@ -20,5 +23,8 @@ export default {
     accountService,
     transferService,
     notificationService,
-    cardService
+    cardService,
+    billService,
+    cardPaymentService,
+    merchantService
 }

@@ -1,6 +1,7 @@
 package com.example.swiftbank.activities.transfer;
 
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -91,7 +92,13 @@ public class TransferActivity extends AppCompatActivity {
         loadAccounts();
 
         // Generează idempotency key pentru acest transfer
-        idempotencyKey = UUID.randomUUID().toString();
+        resetIdempotencyKey();
+    }
+
+    private void resetIdempotencyKey() {
+        if (!isTransferring) {
+            idempotencyKey = UUID.randomUUID().toString();
+        }
     }
 
     private void setupFormatters() {
@@ -118,6 +125,7 @@ public class TransferActivity extends AppCompatActivity {
         etIban = findViewById(R.id.etIban);
         etBeneficiaryName = findViewById(R.id.etBeneficiaryName);
         etAmount = findViewById(R.id.etAmount);
+        etAmount.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
         etDescription = findViewById(R.id.etDescription);
         layoutBankInfo = findViewById(R.id.layoutBankInfo);
         layoutConversion = findViewById(R.id.layoutConversion);
@@ -150,6 +158,7 @@ public class TransferActivity extends AppCompatActivity {
 
             @Override
             public void afterTextChanged(Editable s) {
+                resetIdempotencyKey();
                 // Reset validated data
                 validatedIBAN = null;
                 layoutBankInfo.setVisibility(View.GONE);
@@ -186,6 +195,7 @@ public class TransferActivity extends AppCompatActivity {
 
             @Override
             public void afterTextChanged(Editable s) {
+                resetIdempotencyKey();
                 validateAmount();
                 updateConversionInfo();
                 updateTransferButton();
@@ -202,6 +212,7 @@ public class TransferActivity extends AppCompatActivity {
 
             @Override
             public void afterTextChanged(Editable s) {
+                resetIdempotencyKey();
                 updateTransferButton();
             }
         });
@@ -270,6 +281,7 @@ public class TransferActivity extends AppCompatActivity {
 
     private void selectAccount(AccountData account) {
         selectedAccount = account;
+        resetIdempotencyKey();
         ivFlagFrom.setImageResource(getFlagResource(account.getCurrency()));
         ivFlagAmount.setImageResource(getFlagResource(account.getCurrency()));
         tvFromAccountName.setText("Personal " + account.getCurrency());
@@ -547,6 +559,10 @@ public class TransferActivity extends AppCompatActivity {
 
     private void executeTransfer() {
         if (isTransferring || selectedAccount == null || validatedIBAN == null) return;
+
+        if (idempotencyKey == null || idempotencyKey.isEmpty()) {
+            resetIdempotencyKey();
+        }
 
         isTransferring = true;
         btnTransfer.setText("Se procesează...");

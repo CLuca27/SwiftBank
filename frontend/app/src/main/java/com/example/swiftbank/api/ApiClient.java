@@ -6,12 +6,15 @@ import com.example.swiftbank.api.interceptors.AuthInterceptor;
 import com.example.swiftbank.api.interceptors.TokenAuthenticator;
 import com.example.swiftbank.api.services.AccountService;
 import com.example.swiftbank.api.services.AuthService;
+import com.example.swiftbank.api.services.BillService;
 import com.example.swiftbank.api.services.CardService;
+import com.example.swiftbank.api.services.CardPaymentService;
 import com.example.swiftbank.api.services.PlacesService;
 import com.example.swiftbank.api.services.RatesService;
 import com.example.swiftbank.api.services.TransactionService;
 import com.example.swiftbank.api.services.TransferService;
 import com.example.swiftbank.api.services.UserService;
+import com.example.swiftbank.api.services.StatisticsService;
 import com.example.swiftbank.managers.AuthTokenManager;
 import com.example.swiftbank.config.GsonProvider;
 
@@ -102,5 +105,17 @@ public class ApiClient {
 
     public static CardService getCardService() {
         return getRetrofit().create(CardService.class);
+    }
+
+    public static CardPaymentService getCardPaymentService() {
+        return getRetrofit().create(CardPaymentService.class);
+    }
+
+    public static BillService getBillService() {
+        return getRetrofit().create(BillService.class);
+    }
+
+    public static StatisticsService getStatisticsService() {
+        return getRetrofit().create(StatisticsService.class);
     }
 }

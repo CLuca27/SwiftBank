@@ -281,7 +281,9 @@ async function register(req, res) {
         const {
             phone, email, password,
             first_name, last_name, cnp,
-            address
+            address,
+            device_id,
+            device_name
         } = req.body;
 
         const requiredFields = {
@@ -291,7 +293,8 @@ async function register(req, res) {
             first_name: 'Prenumele',
             last_name: 'Numele',
             cnp: 'CNP-ul',
-            address: 'Adresa'
+            address: 'Adresa',
+            device_id: 'Device ID'
         };
 
         for (const [field, label] of Object.entries(requiredFields)) {
@@ -374,8 +377,8 @@ async function register(req, res) {
         // Creeaza automat un cont RON pentru noul utilizator
         await services.accountService.createAccount(newUser.user_id, 'RON', 'CURRENT');
 
-        const accessToken = services.authService.generateAccessToken(newUser);
-        const refreshToken = services.authService.generateRefreshToken(newUser);
+        const accessToken = services.authService.generateAccessToken(newUser, device_id);
+        const refreshToken = services.authService.generateRefreshToken(newUser, device_id);
 
         const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
         const expiresAt = new Date();
@@ -386,6 +389,8 @@ async function register(req, res) {
             .insert({
                 user_id: newUser.user_id,
                 token_hash: refreshTokenHash,
+                device_id: device_id,
+                device_name: device_name || 'Unknown Device',
                 expires_at: expiresAt.toISOString(),
                 used: false,
                 revoked: false
@@ -662,17 +667,30 @@ async function login(req, res) {
                 locked_until: null
             })
             .eq('user_id', user.user_id);
-        
-        // Generează tokens
-        const accessToken = services.authService.generateAccessToken(user);
-        const refreshToken = services.authService.generateRefreshToken(user);
-        const refreshTokenHash = await services.authService.hashCrypto(refreshToken);
 
+        // SINGLE DEVICE: anunta dispozitivele vechi inainte sa le stergem token-urile FCM.
+        await services.notificationService.notifySessionRevoked(
+            user.user_id,
+            device_id
+        );
+
+        // SINGLE DEVICE: elimina si token-urile FCM de pe dispozitivele vechi.
+        await config.supabase
+            .from('fcm_tokens')
+            .delete()
+            .eq('user_id', user.user_id)
+            .neq('device_id', device_id);
+        
         // SINGLE DEVICE: Șterge TOATE sesiunile vechi
         await config.supabase
             .from('refresh_tokens')
             .delete()
             .eq('user_id', user.user_id);
+
+        // Generează tokens
+        const accessToken = services.authService.generateAccessToken(user, device_id);
+        const refreshToken = services.authService.generateRefreshToken(user, device_id);
+        const refreshTokenHash = await services.authService.hashCrypto(refreshToken);
 
         // Salvează noul token CU device_id și device_name
         await config.supabase
@@ -923,7 +941,7 @@ async function resetPin(req, res) {
         // Găsește user-ul
         let query = config.supabase
             .from('users')
-            .select('user_id');
+            .select('user_id, status');
 
         if (phone) {
             query = query.eq('phone', phone);
@@ -939,6 +957,16 @@ async function resetPin(req, res) {
                 error: {
                     code: 'USER_NOT_FOUND',
                     message: 'Nu există cont cu aceste date'
+                }
+            });
+        }
+
+        if (user.status === 'BLOCKED') {
+            return res.status(403).json({
+                success: false,
+                error: {
+                    code: 'ACCOUNT_BLOCKED',
+                    message: 'Contul este blocat. Contacteaza suportul.'
                 }
             });
         }
@@ -961,6 +989,11 @@ async function resetPin(req, res) {
         // Șterge toate sesiunile existente (forțează re-login)
         await config.supabase
             .from('refresh_tokens')
+            .delete()
+            .eq('user_id', user.user_id);
+
+        await config.supabase
+            .from('fcm_tokens')
             .delete()
             .eq('user_id', user.user_id);
 

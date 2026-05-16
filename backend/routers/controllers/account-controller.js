@@ -2,6 +2,23 @@ import services from '../../services/index.js';
 
 const ALLOWED_CURRENCIES = ['EUR', 'USD', 'GBP'];
 
+function toAccountResponse(account) {
+    const ledgerBalance = parseFloat(account.balance || 0);
+    const blockedBalance = parseFloat(account.blocked_balance || 0);
+    const availableBalance = ledgerBalance - blockedBalance;
+
+    return {
+        account_id: account.account_id,
+        iban: account.iban,
+        account_type: account.account_type,
+        currency: account.currency.trim(),
+        balance: availableBalance,
+        available_balance: availableBalance,
+        ledger_balance: ledgerBalance,
+        blocked_balance: blockedBalance
+    };
+}
+
 async function getAccounts(req, res) {
     try {
         const userId = req.user.user_id;
@@ -11,13 +28,7 @@ async function getAccounts(req, res) {
         return res.status(200).json({
             success: true,
             data: {
-                accounts: accounts.map(acc => ({
-                    account_id: acc.account_id,
-                    iban: acc.iban,
-                    account_type: acc.account_type,
-                    currency: acc.currency.trim(),
-                    balance: parseFloat(acc.balance)
-                }))
+                accounts: accounts.map(toAccountResponse)
             }
         });
 
@@ -81,13 +92,7 @@ async function addAccount(req, res) {
             success: true,
             message: `Cont ${normalizedCurrency} creat cu succes`,
             data: {
-                account: {
-                    account_id: newAccount.account_id,
-                    iban: newAccount.iban,
-                    account_type: newAccount.account_type,
-                    currency: newAccount.currency.trim(),
-                    balance: parseFloat(newAccount.balance)
-                }
+                account: toAccountResponse(newAccount)
             }
         });
 
@@ -107,6 +112,15 @@ async function exchange(req, res) {
     try {
         const userId = req.user.user_id;
         const { fromAccountId, toAccountId, amount } = req.body;
+        const idempotencyKey = req.headers['idempotency-key'];
+
+        // Verifică idempotency key
+        if (idempotencyKey) {
+            const cached = await services.accountService.checkExchangeIdempotency(userId, idempotencyKey);
+            if (cached) {
+                return res.status(cached.response_status).json(cached.response_body);
+            }
+        }
 
         // Validari
         if (!fromAccountId || !toAccountId) {
@@ -157,7 +171,7 @@ async function exchange(req, res) {
             rateInfo.rate
         );
 
-        return res.status(200).json({
+        const responseBody = {
             success: true,
             message: 'Schimb valutar efectuat cu succes',
             data: {
@@ -175,7 +189,14 @@ async function exchange(req, res) {
                 },
                 exchangeRate: result.exchangeRate
             }
-        });
+        };
+
+        // Salvează idempotency key
+        if (idempotencyKey) {
+            await services.accountService.saveExchangeIdempotency(userId, idempotencyKey, 200, responseBody);
+        }
+
+        return res.status(200).json(responseBody);
 
     } catch (error) {
         console.error('Error exchanging currency:', error);

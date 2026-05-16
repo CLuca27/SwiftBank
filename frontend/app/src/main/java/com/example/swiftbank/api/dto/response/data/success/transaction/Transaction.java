@@ -34,8 +34,17 @@ public abstract class Transaction {
     @SerializedName("category_icon")
     protected String categoryIcon;
 
-    @SerializedName("category_color")
-    protected String categoryColor;
+    @SerializedName("category_name")
+    protected String categoryName;
+
+    @SerializedName("merchant_logo_url")
+    protected String merchantLogoUrl;
+
+    @SerializedName("reference")
+    protected String reference;
+
+    @SerializedName("description")
+    protected String description;
 
     public int getId() {
         return id;
@@ -77,8 +86,24 @@ public abstract class Transaction {
         return categoryIcon;
     }
 
-    public String getCategoryColor() {
-        return categoryColor;
+    public String getCategoryName() {
+        return categoryName;
+    }
+
+    public String getCategoryDisplayName() {
+        return categoryName;
+    }
+
+    public String getMerchantLogoUrl() {
+        return merchantLogoUrl;
+    }
+
+    public String getReference() {
+        return reference;
+    }
+
+    public String getDescription() {
+        return description;
     }
 
     public boolean isIncoming() {

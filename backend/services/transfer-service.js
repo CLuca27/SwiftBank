@@ -2,8 +2,32 @@ import config from '../config/index.js';
 import accountService from './account-service.js';
 import ratesService from './rates-service.js';
 import notificationService from './notification-service.js';
+import crypto from 'crypto';
 
 const SWIFTBANK_BIC = 'SWFT';
+
+function shouldRetryIdempotencyInsertWithKeyId(error) {
+    return error?.code === '23502' && String(error.message || '').includes('key_id');
+}
+
+async function insertIdempotencyRecord(record, logContext) {
+    let { error } = await config.supabase
+        .from('idempotency_keys')
+        .insert(record);
+
+    if (shouldRetryIdempotencyInsertWithKeyId(error)) {
+        ({ error } = await config.supabase
+            .from('idempotency_keys')
+            .insert({
+                key_id: crypto.randomInt(1, 2147483647),
+                ...record
+            }));
+    }
+
+    if (error) {
+        console.error(logContext, error);
+    }
+}
 
 /**
  * Extrage BIC-ul din IBAN
@@ -79,7 +103,7 @@ async function getBankByBIC(bic) {
 
 /**
  * Caută cont SwiftBank după IBAN
- * Returnează și datele utilizatorului (pentru beneficiary_name)
+ * Returnează și datele utilizatorului (pentru beneficiary_name și profile_photo)
  */
 async function getSwiftBankAccountByIBAN(iban) {
     const { data, error } = await config.supabase
@@ -93,7 +117,8 @@ async function getSwiftBankAccountByIBAN(iban) {
             users (
                 user_id,
                 first_name,
-                last_name
+                last_name,
+                profile_photo
             )
         `)
         .eq('iban', iban)
@@ -168,6 +193,8 @@ async function checkIdempotencyKey(userId, idempotencyKey, endpoint) {
         .eq('idempotency_key', idempotencyKey)
         .eq('endpoint', endpoint)
         .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
     if (error) {
@@ -186,20 +213,14 @@ async function saveIdempotencyKey(userId, idempotencyKey, endpoint, responseStat
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
 
-    const { error } = await config.supabase
-        .from('idempotency_keys')
-        .insert({
-            user_id: userId,
-            idempotency_key: idempotencyKey,
-            endpoint: endpoint,
-            response_status: responseStatus,
-            response_body: responseBody,
-            expires_at: expiresAt.toISOString()
-        });
-
-    if (error) {
-        console.error('Error saving idempotency key:', error);
-    }
+    await insertIdempotencyRecord({
+        user_id: userId,
+        idempotency_key: idempotencyKey,
+        endpoint: endpoint,
+        response_status: responseStatus,
+        response_body: responseBody,
+        expires_at: expiresAt.toISOString()
+    }, 'Error saving idempotency key:');
 }
 
 /**
@@ -213,6 +234,7 @@ function generateReference() {
 
 /**
  * Obține lista beneficiarilor unui user
+ * Include și profile_photo pentru beneficiarii SwiftBank
  */
 async function getBeneficiaries(userId) {
     const { data, error } = await config.supabase
@@ -226,7 +248,45 @@ async function getBeneficiaries(userId) {
         throw error;
     }
 
-    return data || [];
+    if (!data || data.length === 0) {
+        return [];
+    }
+
+    // Adaugă profile_photo pentru beneficiarii SwiftBank
+    const enrichedBeneficiaries = await Promise.all(data.map(async (beneficiary) => {
+        if (beneficiary.bank_name === 'SwiftBank') {
+            const account = await getSwiftBankAccountByIBAN(beneficiary.iban);
+            if (account && account.users) {
+                return {
+                    ...beneficiary,
+                    profile_photo: account.users.profile_photo || null
+                };
+            }
+        }
+        return { ...beneficiary, profile_photo: null };
+    }));
+
+    return enrichedBeneficiaries;
+}
+
+/**
+ * Șterge un beneficiar
+ */
+async function deleteBeneficiary(userId, beneficiaryId) {
+    const { data, error } = await config.supabase
+        .from('beneficiaries')
+        .delete()
+        .eq('beneficiary_id', beneficiaryId)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error deleting beneficiary:', error);
+        throw error;
+    }
+
+    return data;
 }
 
 /**
@@ -443,6 +503,7 @@ export default {
     saveIdempotencyKey,
     generateReference,
     getBeneficiaries,
+    deleteBeneficiary,
     executeTransfer,
     SWIFTBANK_BIC
 };

@@ -1,7 +1,10 @@
 package com.example.swiftbank.activities.transactions;
 
+import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -10,6 +13,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import androidx.core.content.ContextCompat;
+import androidx.core.widget.ImageViewCompat;
 
 import com.example.swiftbank.R;
 import com.example.swiftbank.api.ApiClient;
@@ -19,6 +23,7 @@ import com.example.swiftbank.api.dto.response.data.success.transaction.BillTrans
 import com.example.swiftbank.api.dto.response.data.success.transaction.CardTransaction;
 import com.example.swiftbank.api.dto.response.data.success.transaction.Transaction;
 import com.example.swiftbank.api.dto.response.data.success.transaction.TransferTransaction;
+import com.example.swiftbank.utils.RemoteImageLoader;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -42,7 +47,8 @@ public class TransactionDetailsActivity extends AppCompatActivity {
 
     // Icon section
     private CardView cardIcon, cardInitials;
-    private ImageView ivIcon, ivSenderPhoto;
+    private FrameLayout exchangeIconContainer;
+    private ImageView ivIcon, ivSenderPhoto, ivFlagFrom, ivFlagTo;
     private TextView tvInitials;
 
     // Amount section
@@ -55,20 +61,23 @@ public class TransactionDetailsActivity extends AppCompatActivity {
     private TextView tvAccountName, tvAccountCurrency;
 
     // Transfer Info
-    private TextView tvBeneficiaryName, tvIban, tvBankName, tvDescription, tvReference;
-    private LinearLayout rowBankName, rowDescription, rowReference;
+    private TextView tvBeneficiaryName, tvIban, tvBankName, tvDescription, tvReference, tvTransferCategory;
+    private ImageView ivTransferCategoryIcon;
+    private LinearLayout rowIban, rowBankName, rowDescription, rowReference, rowTransferCategory;
 
     // Card Info
-    private TextView tvMerchantName, tvLocation, tvCardUsed;
-    private LinearLayout rowLocation;
+    private TextView tvMerchantName, tvLocation, tvCardUsed, tvCategoryName, tvCardReference;
+    private ImageView ivCategoryIcon;
+    private LinearLayout rowLocation, rowCategory, rowCardReference;
 
     // Bill Info
     private TextView tvBillerName, tvBillerCategory, tvClientCode, tvInvoiceRef;
+    private ImageView ivBillerCategoryIcon;
 
     // Amount breakdown
     private LinearLayout sectionAmountBreakdown;
-    private TextView tvOriginalAmount, tvFees, tvTotalAmount;
-    private LinearLayout rowOriginalAmount, rowFees;
+    private TextView tvOriginalAmount, tvExchangeRate, tvFees, tvTotalAmount;
+    private LinearLayout rowOriginalAmount, rowExchangeRate, rowFees;
 
     // Loading
     private LinearLayout loadingState;
@@ -106,9 +115,12 @@ public class TransactionDetailsActivity extends AppCompatActivity {
 
         cardIcon = findViewById(R.id.cardIcon);
         cardInitials = findViewById(R.id.cardInitials);
+        exchangeIconContainer = findViewById(R.id.exchangeIconContainer);
         ivIcon = findViewById(R.id.ivIcon);
         tvInitials = findViewById(R.id.tvInitials);
         ivSenderPhoto = findViewById(R.id.ivSenderPhoto);
+        ivFlagFrom = findViewById(R.id.ivFlagFrom);
+        ivFlagTo = findViewById(R.id.ivFlagTo);
 
         tvAmount = findViewById(R.id.tvAmount);
         tvStatus = findViewById(R.id.tvStatus);
@@ -127,25 +139,37 @@ public class TransactionDetailsActivity extends AppCompatActivity {
         tvBankName = findViewById(R.id.tvBankName);
         tvDescription = findViewById(R.id.tvDescription);
         tvReference = findViewById(R.id.tvReference);
+        tvTransferCategory = findViewById(R.id.tvTransferCategory);
+        ivTransferCategoryIcon = findViewById(R.id.ivTransferCategoryIcon);
+        rowIban = findViewById(R.id.rowIban);
         rowBankName = findViewById(R.id.rowBankName);
         rowDescription = findViewById(R.id.rowDescription);
         rowReference = findViewById(R.id.rowReference);
+        rowTransferCategory = findViewById(R.id.rowTransferCategory);
 
         tvMerchantName = findViewById(R.id.tvMerchantName);
         tvLocation = findViewById(R.id.tvLocation);
         tvCardUsed = findViewById(R.id.tvCardUsed);
+        tvCategoryName = findViewById(R.id.tvCategoryName);
+        tvCardReference = findViewById(R.id.tvCardReference);
+        ivCategoryIcon = findViewById(R.id.ivCategoryIcon);
         rowLocation = findViewById(R.id.rowLocation);
+        rowCategory = findViewById(R.id.rowCategory);
+        rowCardReference = findViewById(R.id.rowCardReference);
 
         tvBillerName = findViewById(R.id.tvBillerName);
         tvBillerCategory = findViewById(R.id.tvBillerCategory);
+        ivBillerCategoryIcon = findViewById(R.id.ivBillerCategoryIcon);
         tvClientCode = findViewById(R.id.tvClientCode);
         tvInvoiceRef = findViewById(R.id.tvInvoiceRef);
 
         sectionAmountBreakdown = findViewById(R.id.sectionAmountBreakdown);
         tvOriginalAmount = findViewById(R.id.tvOriginalAmount);
+        tvExchangeRate = findViewById(R.id.tvExchangeRate);
         tvFees = findViewById(R.id.tvFees);
         tvTotalAmount = findViewById(R.id.tvTotalAmount);
         rowOriginalAmount = findViewById(R.id.rowOriginalAmount);
+        rowExchangeRate = findViewById(R.id.rowExchangeRate);
         rowFees = findViewById(R.id.rowFees);
 
         loadingState = findViewById(R.id.loadingState);
@@ -269,10 +293,20 @@ public class TransactionDetailsActivity extends AppCompatActivity {
 
     private void setupIcon(Transaction transaction) {
         String type = transaction.getTransactionType();
+        exchangeIconContainer.setVisibility(View.GONE);
 
         if (transaction instanceof TransferTransaction) {
             TransferTransaction transfer = (TransferTransaction) transaction;
             String beneficiary = transfer.getBeneficiaryName();
+
+            if (isExchangeTransfer(transfer)) {
+                cardIcon.setVisibility(View.GONE);
+                cardInitials.setVisibility(View.GONE);
+                exchangeIconContainer.setVisibility(View.VISIBLE);
+                ivFlagFrom.setImageResource(getFlagForCurrency(getExchangeFromCurrency(transfer)));
+                ivFlagTo.setImageResource(getFlagForCurrency(getExchangeToCurrency(transfer)));
+                return;
+            }
 
             if (beneficiary != null && !beneficiary.isEmpty() &&
                 !"SELF_IN".equals(type) && !"SELF_OUT".equals(type)) {
@@ -315,7 +349,46 @@ public class TransactionDetailsActivity extends AppCompatActivity {
         // Show icon
         cardIcon.setVisibility(View.VISIBLE);
         cardInitials.setVisibility(View.GONE);
+        exchangeIconContainer.setVisibility(View.GONE);
+        if (!applyRemoteLogo(transaction)) {
+            applyFallbackIcon(transaction);
+        }
+    }
+
+    private boolean applyRemoteLogo(Transaction transaction) {
+        String logoUrl = transaction.getMerchantLogoUrl();
+        if (logoUrl == null || logoUrl.trim().isEmpty()) {
+            return false;
+        }
+
+        cardIcon.setCardBackgroundColor(ContextCompat.getColor(this, R.color.white));
+        ImageViewCompat.setImageTintList(ivIcon, null);
+        ivIcon.clearColorFilter();
+        setIconImageSize(52);
+        ivIcon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+
+        return RemoteImageLoader.load(logoUrl, ivIcon, () -> applyFallbackIcon(transaction));
+    }
+
+    private void applyFallbackIcon(Transaction transaction) {
+        ivIcon.setTag(null);
+        cardIcon.setCardBackgroundColor(ContextCompat.getColor(this, R.color.white_10));
+        setIconImageSize(36);
+        ivIcon.setScaleType(ImageView.ScaleType.CENTER);
+        ImageViewCompat.setImageTintList(
+                ivIcon,
+                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.white)));
         ivIcon.setImageResource(getIconForTransaction(transaction));
+    }
+
+    private void setIconImageSize(int sizeDp) {
+        ViewGroup.LayoutParams params = ivIcon.getLayoutParams();
+        int sizePx = Math.round(sizeDp * getResources().getDisplayMetrics().density);
+        if (params.width != sizePx || params.height != sizePx) {
+            params.width = sizePx;
+            params.height = sizePx;
+            ivIcon.setLayoutParams(params);
+        }
     }
 
     private void displayCardTransaction(CardTransaction transaction) {
@@ -338,6 +411,31 @@ public class TransactionDetailsActivity extends AppCompatActivity {
         } else {
             tvCardUsed.setText("Card virtual");
         }
+
+        String categoryName = transaction.getCategoryName();
+        String categoryIcon = transaction.getCategoryIcon();
+        if (categoryName != null && !categoryName.isEmpty()) {
+            rowCategory.setVisibility(View.VISIBLE);
+            tvCategoryName.setText(translateCategoryName(categoryName));
+            ivCategoryIcon.setImageResource(getCategoryIconResource(categoryIcon));
+        } else {
+            rowCategory.setVisibility(View.GONE);
+        }
+
+        String reference = transaction.getReference();
+        if (reference == null || reference.trim().isEmpty()) {
+            Integer sessionId = transaction.getSessionId();
+            if (sessionId != null) {
+                reference = "CARD-" + sessionId;
+            }
+        }
+
+        if (reference != null && !reference.trim().isEmpty()) {
+            rowCardReference.setVisibility(View.VISIBLE);
+            tvCardReference.setText(reference);
+        } else {
+            rowCardReference.setVisibility(View.GONE);
+        }
     }
 
     private void displayTransferTransaction(TransferTransaction transaction) {
@@ -350,9 +448,15 @@ public class TransactionDetailsActivity extends AppCompatActivity {
 
         if (isSelfTransfer) {
             tvBeneficiaryName.setText("Transfer între conturi proprii");
-            tvIban.setText("-");
+            rowIban.setVisibility(View.GONE);
             rowBankName.setVisibility(View.GONE);
+
+            // Show transfer category for self transfers
+            rowTransferCategory.setVisibility(View.VISIBLE);
+            tvTransferCategory.setText("Schimb valutar");
+            ivTransferCategoryIcon.setVisibility(View.GONE);
         } else {
+            rowIban.setVisibility(View.VISIBLE);
             tvBeneficiaryName.setText(transaction.getBeneficiaryName() != null ?
                     transaction.getBeneficiaryName() : "-");
             tvIban.setText(transaction.getIban() != null ?
@@ -364,6 +468,13 @@ public class TransactionDetailsActivity extends AppCompatActivity {
             } else {
                 rowBankName.setVisibility(View.GONE);
             }
+
+            // Show transfer category for regular transfers
+            rowTransferCategory.setVisibility(View.VISIBLE);
+            boolean isIncoming = "TRANSFER_IN".equals(type);
+            tvTransferCategory.setText(isIncoming ? "Transfer primit" : "Transfer trimis");
+            ivTransferCategoryIcon.setVisibility(View.VISIBLE);
+            ivTransferCategoryIcon.setImageResource(isIncoming ? R.drawable.ic_transfer_in : R.drawable.ic_transfer_out);
         }
 
         // Description (what user wrote)
@@ -388,14 +499,55 @@ public class TransactionDetailsActivity extends AppCompatActivity {
         sectionTransferInfo.setVisibility(View.GONE);
         sectionCardInfo.setVisibility(View.GONE);
 
-        tvBillerName.setText(transaction.getBillerName() != null ?
-                transaction.getBillerName() : transaction.getTitle());
-        tvBillerCategory.setText(transaction.getBillerCategory() != null ?
-                transaction.getBillerCategory() : "-");
-        tvClientCode.setText(transaction.getClientCode() != null ?
-                transaction.getClientCode() : "-");
-        tvInvoiceRef.setText(transaction.getInvoiceReference() != null ?
-                transaction.getInvoiceReference() : "-");
+        tvBillerName.setText(displayValue(transaction.getBillerName()));
+        tvBillerCategory.setText(getCategoryDisplayName(transaction.getBillerCategory()));
+        applyBillProviderIcon(transaction);
+        tvClientCode.setText(displayValue(transaction.getClientCode()));
+        tvInvoiceRef.setText(displayValue(transaction.getInvoiceReference()));
+    }
+
+    private void applyBillProviderIcon(BillTransaction transaction) {
+        String logoUrl = transaction.getMerchantLogoUrl();
+        if (logoUrl != null && !logoUrl.trim().isEmpty()) {
+            ImageViewCompat.setImageTintList(ivBillerCategoryIcon, null);
+            ivBillerCategoryIcon.clearColorFilter();
+            ivBillerCategoryIcon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+
+            if (RemoteImageLoader.load(logoUrl, ivBillerCategoryIcon, () -> applyBillFallbackIcon(transaction))) {
+                return;
+            }
+        }
+
+        applyBillFallbackIcon(transaction);
+    }
+
+    private void applyBillFallbackIcon(BillTransaction transaction) {
+        ivBillerCategoryIcon.setTag(null);
+        ivBillerCategoryIcon.setScaleType(ImageView.ScaleType.CENTER);
+        ImageViewCompat.setImageTintList(
+                ivBillerCategoryIcon,
+                ColorStateList.valueOf(ContextCompat.getColor(this, R.color.white_60)));
+        ivBillerCategoryIcon.setImageResource(getBillCategoryIconResource(transaction.getBillerCategory()));
+    }
+
+    private String displayValue(String value) {
+        if (value == null || value.isEmpty()) {
+            return "-";
+        }
+
+        return value;
+    }
+
+    private String getCategoryDisplayName(String category) {
+        if (category == null || category.isEmpty()) return "-";
+        switch (category.toLowerCase()) {
+            case "utilities": return "Utilități";
+            case "telecom": return "Telecom";
+            case "internet": return "Internet";
+            case "tv": return "TV & Cablu";
+            case "insurance": return "Asigurări";
+            default: return category.substring(0, 1).toUpperCase() + category.substring(1);
+        }
     }
 
     private void displayAmountBreakdown(Transaction transaction) {
@@ -403,6 +555,7 @@ public class TransactionDetailsActivity extends AppCompatActivity {
 
         double totalAmount = Math.abs(transaction.getAmount());
         double fees = 0;
+        rowExchangeRate.setVisibility(View.GONE);
 
         // Check for currency conversion
         if (transaction instanceof TransferTransaction) {
@@ -411,6 +564,12 @@ public class TransactionDetailsActivity extends AppCompatActivity {
                 rowOriginalAmount.setVisibility(View.VISIBLE);
                 tvOriginalAmount.setText(formatBalance(Math.abs(transfer.getOriginalAmount())) +
                         " " + getCurrencySymbol(transfer.getOriginalCurrency()));
+
+                String exchangeRate = formatExchangeRate(transfer);
+                if (exchangeRate != null) {
+                    rowExchangeRate.setVisibility(View.VISIBLE);
+                    tvExchangeRate.setText(exchangeRate);
+                }
             } else {
                 rowOriginalAmount.setVisibility(View.GONE);
             }
@@ -456,6 +615,90 @@ public class TransactionDetailsActivity extends AppCompatActivity {
         symbols.setDecimalSeparator(',');
         DecimalFormat df = new DecimalFormat("#,##0.00", symbols);
         return df.format(balance);
+    }
+
+    private String formatRate(double rate) {
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.getDefault());
+        symbols.setGroupingSeparator('.');
+        symbols.setDecimalSeparator(',');
+        DecimalFormat df = new DecimalFormat("#,##0.####", symbols);
+        return df.format(rate);
+    }
+
+    private boolean isExchangeTransfer(TransferTransaction transfer) {
+        String type = transfer.getTransactionType();
+        return ("SELF_IN".equals(type) || "SELF_OUT".equals(type)) && transfer.hasCurrencyConversion();
+    }
+
+    private String formatExchangeRate(TransferTransaction transfer) {
+        String fromCurrency = getExchangeFromCurrency(transfer);
+        String toCurrency = getExchangeToCurrency(transfer);
+        Double rate = transfer.getExchangeRate();
+
+        if (rate == null || rate <= 0) {
+            double fromAmount = getExchangeFromAmount(transfer);
+            double toAmount = getExchangeToAmount(transfer);
+            if (fromAmount > 0 && toAmount > 0) {
+                rate = toAmount / fromAmount;
+            }
+        }
+
+        if (rate == null || rate <= 0) {
+            return null;
+        }
+
+        return "1 " + fromCurrency + " = " + formatRate(rate) + " " + toCurrency;
+    }
+
+    private double getExchangeFromAmount(TransferTransaction transfer) {
+        if ("SELF_OUT".equals(transfer.getTransactionType())) {
+            return Math.abs(transfer.getAmount());
+        }
+        Double originalAmount = transfer.getOriginalAmount();
+        return originalAmount != null ? Math.abs(originalAmount) : 0;
+    }
+
+    private double getExchangeToAmount(TransferTransaction transfer) {
+        if ("SELF_OUT".equals(transfer.getTransactionType())) {
+            Double originalAmount = transfer.getOriginalAmount();
+            return originalAmount != null ? Math.abs(originalAmount) : 0;
+        }
+        return Math.abs(transfer.getAmount());
+    }
+
+    private String getExchangeFromCurrency(TransferTransaction transfer) {
+        if ("SELF_OUT".equals(transfer.getTransactionType())) {
+            return normalizeCurrency(transfer.getCurrency());
+        }
+        return normalizeCurrency(transfer.getOriginalCurrency());
+    }
+
+    private String getExchangeToCurrency(TransferTransaction transfer) {
+        if ("SELF_OUT".equals(transfer.getTransactionType())) {
+            return normalizeCurrency(transfer.getOriginalCurrency());
+        }
+        return normalizeCurrency(transfer.getCurrency());
+    }
+
+    private String normalizeCurrency(String currency) {
+        if (currency == null || currency.trim().isEmpty()) {
+            return accountCurrency != null ? accountCurrency.trim().toUpperCase(Locale.ROOT) : "RON";
+        }
+        return currency.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private int getFlagForCurrency(String currency) {
+        switch (normalizeCurrency(currency)) {
+            case "EUR":
+                return R.drawable.flag_eur;
+            case "USD":
+                return R.drawable.flag_usd;
+            case "GBP":
+                return R.drawable.flag_gbp;
+            case "RON":
+            default:
+                return R.drawable.flag_ro;
+        }
     }
 
     private String getCurrencySymbol(String currency) {
@@ -519,10 +762,122 @@ public class TransactionDetailsActivity extends AppCompatActivity {
             case "TRANSFER_OUT":
                 return R.drawable.ic_transfer_out;
             case "BILL":
-                return R.drawable.ic_payments;
+                if (t instanceof BillTransaction) {
+                    BillTransaction bill = (BillTransaction) t;
+                    return getBillIconForCategory(bill.getBillerCategory());
+                }
+                return getBillIconForCategory(t.getSubtitle());
             case "CARD":
             default:
                 return R.drawable.ic_shopping;
+        }
+    }
+
+    private int getBillIconForCategory(String category) {
+        if (category == null) return R.drawable.ic_receipt;
+        switch (category.toLowerCase()) {
+            case "utilities":
+                return R.drawable.ic_utilities;
+            case "telecom":
+                return R.drawable.ic_phone;
+            case "internet":
+                return R.drawable.ic_wifi;
+            case "tv":
+                return R.drawable.ic_tv;
+            case "insurance":
+                return R.drawable.ic_shield;
+            default:
+                return R.drawable.ic_receipt;
+        }
+    }
+
+    private int getCategoryIconResource(String iconName) {
+        if (iconName == null || iconName.isEmpty()) return R.drawable.ic_category_other;
+
+        // Backend sends "ic_category_shopping", extract just "shopping"
+        String category = iconName.toLowerCase();
+        if (category.startsWith("ic_category_")) {
+            category = category.substring(12);
+        }
+
+        switch (category) {
+            case "food":
+                return R.drawable.ic_category_food;
+            case "shopping":
+                return R.drawable.ic_category_shopping;
+            case "transport":
+                return R.drawable.ic_category_transport;
+            case "entertainment":
+                return R.drawable.ic_category_entertainment;
+            case "groceries":
+                return R.drawable.ic_category_groceries;
+            case "health":
+                return R.drawable.ic_category_health;
+            case "utilities":
+                return R.drawable.ic_category_utilities;
+            case "travel":
+                return R.drawable.ic_category_travel;
+            case "services":
+                return R.drawable.ic_category_services;
+            case "electronics":
+                return R.drawable.ic_category_electronics;
+            case "furniture":
+                return R.drawable.ic_category_furniture;
+            default:
+                return R.drawable.ic_category_other;
+        }
+    }
+
+    private int getBillCategoryIconResource(String category) {
+        if (category == null || category.isEmpty()) return R.drawable.ic_receipt;
+        switch (category.toLowerCase()) {
+            case "utilities":
+                return R.drawable.ic_utilities;
+            case "telecom":
+                return R.drawable.ic_phone;
+            case "internet":
+                return R.drawable.ic_wifi;
+            case "tv":
+                return R.drawable.ic_tv;
+            case "insurance":
+                return R.drawable.ic_shield;
+            default:
+                return R.drawable.ic_receipt;
+        }
+    }
+
+    private String translateCategoryName(String name) {
+        if (name == null || name.isEmpty()) return "Altele";
+        switch (name.toLowerCase()) {
+            case "food & dining":
+            case "food":
+                return "Mâncare";
+            case "shopping":
+                return "Cumpărături";
+            case "transport":
+            case "transportation":
+                return "Transport";
+            case "entertainment":
+                return "Divertisment";
+            case "groceries":
+                return "Alimente";
+            case "health":
+            case "health & wellness":
+                return "Sănătate";
+            case "utilities":
+                return "Utilități";
+            case "travel":
+                return "Călătorii";
+            case "services":
+                return "Servicii";
+            case "electronics":
+                return "Electronice";
+            case "furniture":
+                return "Mobilier";
+            case "other":
+                return "Altele";
+            default:
+                return name;
         }
     }
 }

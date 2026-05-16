@@ -16,6 +16,12 @@ public class UserData {
     @SerializedName("email")
     private String email;
 
+    @SerializedName("status")
+    private String status;
+
+    @SerializedName("locked_until")
+    private String lockedUntil;
+
     public int getUserId() {
         return userId;
     }
@@ -30,5 +36,13 @@ public class UserData {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public String getLockedUntil() {
+        return lockedUntil;
     }
 }

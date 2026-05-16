@@ -49,10 +49,35 @@ public class TokenAuthenticator implements Authenticator {
     @Nullable
     @Override
     public Request authenticate(@Nullable Route route, @NonNull Response response) throws IOException {
+        if (responseCount(response) >= 2) {
+            return null;
+        }
         // Dacă request-ul original nu avea Authorization header, nu încercăm refresh
         String authHeader = response.request().header("Authorization");
         if (authHeader == null) {
-            return null;
+            if (!isProtectedApiRequest(response.request())) {
+                return null;
+            }
+
+            synchronized (LOCK) {
+                RefreshData refreshData = doRefresh();
+
+                if (refreshData != null) {
+                    Log.d(TAG, "Refresh reusit pentru request fara access token");
+                    tokenManager.saveTokens(
+                            refreshData.getAccessToken(),
+                            refreshData.getRefreshToken()
+                    );
+
+                    return response.request().newBuilder()
+                            .header("Authorization", "Bearer " + refreshData.getAccessToken())
+                            .build();
+                }
+
+                Log.e(TAG, "Token lipsa pe ruta protejata, sesiune expirata");
+                handleSessionExpired();
+                return null;
+            }
         }
 
         synchronized (LOCK) {
@@ -141,5 +166,18 @@ public class TokenAuthenticator implements Authenticator {
         Intent intent = new Intent("com.example.swiftbank.SESSION_EXPIRED");
         intent.setPackage(context.getPackageName());
         context.sendBroadcast(intent);
+    }
+
+    private boolean isProtectedApiRequest(Request request) {
+        String path = request.url().encodedPath();
+        return path != null && path.startsWith("/api/");
+    }
+
+    private int responseCount(Response response) {
+        int result = 1;
+        while ((response = response.priorResponse()) != null) {
+            result++;
+        }
+        return result;
     }
 }

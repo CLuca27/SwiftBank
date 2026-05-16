@@ -13,12 +13,6 @@ public class TransferTransaction extends Transaction {
     @SerializedName("bank_name")
     private String bankName;
 
-    @SerializedName("reference")
-    private String reference;
-
-    @SerializedName("description")
-    private String description;
-
     @SerializedName("transfer_type")
     private String transferType; // INTERNAL, OWN_BANK, EXTERNAL
 
@@ -44,14 +38,6 @@ public class TransferTransaction extends Transaction {
 
     public String getBankName() {
         return bankName;
-    }
-
-    public String getReference() {
-        return reference;
-    }
-
-    public String getDescription() {
-        return description;
     }
 
     public String getTransferType() {

@@ -25,9 +25,15 @@ public class RegisterRequest {
     @SerializedName("address")
     private String address;
 
+    @SerializedName("device_id")
+    private String deviceId;
+
+    @SerializedName("device_name")
+    private String deviceName;
+
     public RegisterRequest(String phone, String email, String password,
                            String firstName, String lastName, String cnp,
-                           String address) {
+                           String address, String deviceId, String deviceName) {
         this.phone = phone;
         this.email = email;
         this.password = password;
@@ -35,5 +41,7 @@ public class RegisterRequest {
         this.lastName = lastName;
         this.cnp = cnp;
         this.address = address;
+        this.deviceId = deviceId;
+        this.deviceName = deviceName;
     }
 }

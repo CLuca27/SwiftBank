@@ -25,13 +25,16 @@ import androidx.core.content.ContextCompat;
 
 import com.example.swiftbank.R;
 import com.example.swiftbank.managers.BiometricCredentialsManager;
+import com.example.swiftbank.activities.cards.CardPaymentApprovalActivity;
 import com.example.swiftbank.activities.dashboard.DashboardActivity;
 import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.request.ForgotPinRequest;
+import com.example.swiftbank.api.dto.request.IdentifyRequest;
 import com.example.swiftbank.api.dto.request.LoginRequest;
 import com.example.swiftbank.api.dto.response.data.success.ForgotPinData;
 import com.example.swiftbank.api.dto.response.ApiErrorResponse;
 import com.example.swiftbank.api.dto.response.ApiResponse;
+import com.example.swiftbank.api.dto.response.data.success.IdentifyData;
 import com.example.swiftbank.api.dto.response.data.success.LoginData;
 import com.example.swiftbank.api.dto.response.data.error.AttemptsErrorData;
 import com.example.swiftbank.api.dto.response.data.error.ErrorData;
@@ -42,11 +45,8 @@ import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.utils.SwiftBankDialog;
 import com.example.swiftbank.views.ParticlesView;
 
-import java.text.SimpleDateFormat;
 import java.time.Instant;
-import java.util.Date;
 import java.util.Locale;
-import java.util.TimeZone;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -124,6 +124,9 @@ public class LoginPinActivity extends AppCompatActivity {
         loadingOverlay = findViewById(R.id.loadingOverlay);
         particlesView = findViewById(R.id.particlesView);
 
+        btnBack.setVisibility(View.INVISIBLE);
+        btnBack.setEnabled(false);
+
         // Afișează elementele de login
         tvForgotPin.setVisibility(View.VISIBLE);
 
@@ -166,8 +169,6 @@ public class LoginPinActivity extends AppCompatActivity {
     }
 
     private void setupListeners() {
-        btnBack.setOnClickListener(v -> finish());
-
         tvForgotPin.setOnClickListener(v -> showForgotPinDialog());
 
         btnBiometric.setOnClickListener(v -> {
@@ -187,29 +188,77 @@ public class LoginPinActivity extends AppCompatActivity {
     }
 
     private void checkInitialLockState() {
-        if (lockedUntil != null && !lockedUntil.isEmpty()) {
-            int secondsLeft = calculateSecondsLeft(lockedUntil);
-            if (secondsLeft > 0) {
-                startLockTimer(secondsLeft);
-            }
+        if (startLockTimerFromTimestamp(lockedUntil)) {
+            return;
         }
+
+        refreshLockStateFromBackend();
+    }
+
+    private boolean startLockTimerFromTimestamp(String lockedUntilValue) {
+        int secondsLeft = calculateSecondsLeft(lockedUntilValue);
+        if (secondsLeft <= 0) {
+            return false;
+        }
+
+        startLockTimer(secondsLeft);
+        return true;
+    }
+
+    private void refreshLockStateFromBackend() {
+        if ((phone == null || phone.isEmpty()) && (email == null || email.isEmpty())) {
+            return;
+        }
+
+        IdentifyRequest request = new IdentifyRequest(email, phone);
+        ApiClient.getAuthService().identify(request).enqueue(new Callback<ApiResponse<IdentifyData>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<IdentifyData>> call,
+                                   Response<ApiResponse<IdentifyData>> response) {
+                if (!response.isSuccessful() || response.body() == null || response.body().getData() == null) {
+                    return;
+                }
+
+                IdentifyData data = response.body().getData();
+                if (data.isBlocked()) {
+                    goToBlockedPage();
+                    return;
+                }
+
+                startLockTimerFromTimestamp(data.getLockedUntil());
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<IdentifyData>> call, Throwable t) {
+                Log.e(TAG, "Unable to refresh lock state: " + t.getMessage());
+            }
+        });
     }
 
     private int calculateSecondsLeft(String lockedUntilStr) {
+        long lockedUntilMillis = parseLockedUntilMillis(lockedUntilStr);
+        if (lockedUntilMillis <= 0) {
+            return 0;
+        }
+
+        long diffMs = lockedUntilMillis - System.currentTimeMillis();
+        return (int) Math.max(0, (diffMs + 999) / 1000);
+    }
+
+    private long parseLockedUntilMillis(String lockedUntilStr) {
+        if (lockedUntilStr == null || lockedUntilStr.trim().isEmpty()) {
+            return 0;
+        }
+
+        String value = lockedUntilStr.trim().replace(' ', 'T');
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
-            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-
-            Date lockedUntilDate = sdf.parse(lockedUntilStr);
-            Date now = new Date();
-
-            if (lockedUntilDate != null) {
-                long diffMs = lockedUntilDate.getTime() - now.getTime();
-                int secondsLeft = (int) (diffMs / 1000);
-                return Math.max(0, secondsLeft);
-            }
+            return Instant.parse(value).toEpochMilli();
         } catch (Exception e) {
-            Log.e(TAG, "Error parsing locked_until: " + e.getMessage());
+            try {
+                return Instant.parse(value + "Z").toEpochMilli();
+            } catch (Exception ignored) {
+                Log.e(TAG, "Error parsing locked_until: " + e.getMessage());
+            }
         }
         return 0;
     }
@@ -304,6 +353,17 @@ public class LoginPinActivity extends AppCompatActivity {
             // Înregistrează dispozitivul pentru notificări push
             com.example.swiftbank.managers.FCMTokenManager.getInstance(this).registerDevice();
 
+            // Verifică dacă există plată pending de confirmat
+            Intent pendingPayment = CardPaymentApprovalActivity.getPendingPaymentIntent(this);
+            if (pendingPayment != null) {
+                CardPaymentApprovalActivity.clearPendingPayment(this);
+                pendingPayment.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(pendingPayment);
+                overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+                finish();
+                return;
+            }
+
             // Navighează la Dashboard cu animație
             Intent intent = new Intent(this, DashboardActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -341,10 +401,11 @@ public class LoginPinActivity extends AppCompatActivity {
 
             case "ACCOUNT_LOCKED":
                 if (errorData instanceof LoginCooldownErrorData) {
-                    System.out.println(((LoginCooldownErrorData) errorData).getLockedUntil());
-                    Instant lockedUntilInstant = Instant.parse(((LoginCooldownErrorData) errorData).getLockedUntil());
-                    long remainingMs = lockedUntilInstant.toEpochMilli() - System.currentTimeMillis();
-                    int remainingSeconds = (int) Math.max(0, (remainingMs + 999) / 1000);
+                    LoginCooldownErrorData cooldownData = (LoginCooldownErrorData) errorData;
+                    int remainingSeconds = calculateSecondsLeft(cooldownData.getLockedUntil());
+                    if (remainingSeconds <= 0) {
+                        remainingSeconds = cooldownData.getSecondsLeft();
+                    }
                     if (remainingSeconds > 0) {
                         startLockTimer(remainingSeconds);
                     }

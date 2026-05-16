@@ -4,11 +4,17 @@ import android.Manifest;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -21,7 +27,12 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.swiftbank.activities.cards.CardPaymentApprovalActivity;
+import com.example.swiftbank.api.dto.response.data.success.transaction.BillTransaction;
+import com.example.swiftbank.api.dto.response.data.success.transaction.CardTransaction;
 import com.example.swiftbank.api.dto.response.data.success.transaction.TransferTransaction;
+import com.example.swiftbank.utils.ExchangeTitleFormatter;
+import com.example.swiftbank.utils.RemoteImageLoader;
 import com.example.swiftbank.utils.SwiftBankDialog;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -71,6 +82,10 @@ public class DashboardActivity extends AppCompatActivity {
     private static final String TAG = "DashboardActivity";
     private static final String PREFS_NAME = "SwiftBankNotifications";
     private static final String KEY_PERMISSION_ASKED = "notification_permission_asked";
+    private static final String ACTION_REFRESH_DATA = "com.example.swiftbank.REFRESH_DATA";
+    private static final int REQUEST_CARD_PAYMENT_APPROVAL = 2402;
+    private static final long DATA_REFRESH_DEBOUNCE_MS = 350L;
+    private static final int TRANSACTIONS_PAGE_SIZE = 10;
 
     // Permission launcher pentru notificări
     private final ActivityResultLauncher<String> notificationPermissionLauncher =
@@ -109,7 +124,7 @@ public class DashboardActivity extends AppCompatActivity {
     private LinearLayout transactionsSkeleton;
 
     // Quick Actions
-    private LinearLayout btnSend, btnExchange, btnMore;
+    private LinearLayout btnSend, btnExchange, btnMore, btnStats;
     private ImageView btnSettings;
 
     // State
@@ -119,6 +134,33 @@ public class DashboardActivity extends AppCompatActivity {
     private String userFirstName = "";
     private String userLastName = "";
     private int currentUserId = -1;
+    private boolean refreshReceiverRegistered = false;
+    private boolean didInitialResume = false;
+    private boolean accountsRequestInFlight = false;
+    private boolean queuedAccountsRefresh = false;
+    private int displayedTransactionsAccountId = -1;
+    private final Handler refreshHandler = new Handler(Looper.getMainLooper());
+    private final Runnable dashboardRefreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            loadAccounts();
+        }
+    };
+    private Call<ApiResponse<AccountsData>> accountsCall;
+    private Call<ApiResponse<TransactionsData>> transactionsCall;
+
+    // Transactions pagination
+    private int transactionsOffset = 0;
+    private boolean transactionsHasMore = true;
+    private boolean isLoadingMoreTransactions = false;
+    private List<com.example.swiftbank.api.dto.response.data.success.transaction.Transaction> allApiTransactions = new ArrayList<>();
+
+    private final BroadcastReceiver refreshReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            requestDashboardRefresh();
+        }
+    };
     private double displayedBalance = 0; // Pentru animația soldului
 
     // Realtime
@@ -135,10 +177,17 @@ public class DashboardActivity extends AppCompatActivity {
         initViews();
         setupListeners();
         setupTransactionsList();
+        registerRefreshReceiver();
         loadProfile();
         loadAccounts();
         loadRates();
         checkNotificationPermission();
+    }
+
+    private void registerRefreshReceiver() {
+        IntentFilter filter = new IntentFilter(ACTION_REFRESH_DATA);
+        ContextCompat.registerReceiver(this, refreshReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
+        refreshReceiverRegistered = true;
     }
 
     private void checkNotificationPermission() {
@@ -177,10 +226,12 @@ public class DashboardActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Refresh data when returning from other activities
-        loadAccounts();
+        if (didInitialResume) {
+            requestDashboardRefresh();
+        } else {
+            didInitialResume = true;
+        }
         loadRates();
-        loadProfile();
 
         // Start particles animation
         if (particlesView != null) {
@@ -245,6 +296,7 @@ public class DashboardActivity extends AppCompatActivity {
         btnSend = findViewById(R.id.btnSend);
         btnExchange = findViewById(R.id.btnExchange);
         btnMore = findViewById(R.id.btnMore);
+        btnStats = findViewById(R.id.btnStats);
         btnSettings = findViewById(R.id.btnSettings);
 
         // Skeleton views
@@ -317,7 +369,7 @@ public class DashboardActivity extends AppCompatActivity {
         btnAccounts.setOnClickListener(v -> showAccountsBottomSheet());
 
         btnSend.setOnClickListener(v -> {
-            startActivity(new Intent(this, com.example.swiftbank.activities.transfer.TransferActivity.class));
+            startActivity(new Intent(this, com.example.swiftbank.activities.send.SendOptionsActivity.class));
         });
 
         btnExchange.setOnClickListener(v -> {
@@ -336,6 +388,10 @@ public class DashboardActivity extends AppCompatActivity {
 
         btnSettings.setOnClickListener(v -> {
             startActivity(new Intent(this, SettingsActivity.class));
+        });
+
+        btnStats.setOnClickListener(v -> {
+            startActivity(new Intent(this, com.example.swiftbank.activities.statistics.StatisticsActivity.class));
         });
 
         profileContent.setOnClickListener(v -> {
@@ -674,7 +730,7 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     private void setupRealtimeSubscription() {
-        if (currentUserId == -1) return;
+        if (currentUserId == -1 || realtimeListener != null) return;
 
         RealtimeManager realtime = RealtimeManager.getInstance();
 
@@ -689,7 +745,7 @@ public class DashboardActivity extends AppCompatActivity {
             public void onInsert(String table, JsonObject newRecord) {
                 // Cont nou adăugat - reîncarcă totul
                 runOnUiThread(() -> {
-                    loadAccounts();
+                    requestDashboardRefresh();
                 });
             }
 
@@ -698,11 +754,8 @@ public class DashboardActivity extends AppCompatActivity {
                 // Balanță modificată = tranzacție nouă
                 // Reîncarcă conturile și tranzacțiile
                 runOnUiThread(() -> {
-                    loadAccounts();
+                    requestDashboardRefresh();
                     // Refresh tranzacții pentru contul curent
-                    if (!accounts.isEmpty() && selectedAccountIndex < accounts.size()) {
-                        loadTransactionsForAccount(accounts.get(selectedAccountIndex));
-                    }
                 });
             }
 
@@ -710,13 +763,14 @@ public class DashboardActivity extends AppCompatActivity {
             public void onDelete(String table, JsonObject oldRecord) {
                 // Cont șters - reîncarcă lista
                 runOnUiThread(() -> {
-                    loadAccounts();
+                    requestDashboardRefresh();
                 });
             }
         };
 
         // Abonează la schimbări pe conturile acestui user
         realtime.subscribeToUserChanges("accounts", String.valueOf(currentUserId), realtimeListener);
+        realtime.subscribeToUserChanges("card_payment_sessions", String.valueOf(currentUserId), realtimeListener);
     }
 
     private void showProfileContent() {
@@ -764,8 +818,30 @@ public class DashboardActivity extends AppCompatActivity {
         return initials.toUpperCase();
     }
 
+    private void requestDashboardRefresh() {
+        refreshHandler.removeCallbacks(dashboardRefreshRunnable);
+        refreshHandler.postDelayed(dashboardRefreshRunnable, DATA_REFRESH_DEBOUNCE_MS);
+    }
+
+    private void finishAccountsRequest() {
+        accountsRequestInFlight = false;
+        accountsCall = null;
+
+        if (queuedAccountsRefresh) {
+            queuedAccountsRefresh = false;
+            requestDashboardRefresh();
+        }
+    }
+
     private void loadAccounts() {
-        ApiClient.getAccountService().getAccounts().enqueue(new Callback<ApiResponse<AccountsData>>() {
+        if (accountsRequestInFlight) {
+            queuedAccountsRefresh = true;
+            return;
+        }
+
+        accountsRequestInFlight = true;
+        accountsCall = ApiClient.getAccountService().getAccounts();
+        accountsCall.enqueue(new Callback<ApiResponse<AccountsData>>() {
             @Override
             public void onResponse(Call<ApiResponse<AccountsData>> call, Response<ApiResponse<AccountsData>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
@@ -792,12 +868,18 @@ public class DashboardActivity extends AppCompatActivity {
                     Toast.makeText(DashboardActivity.this, "Eroare la incarcarea conturilor", Toast.LENGTH_SHORT).show();
                     showBalanceContent();
                 }
+                finishAccountsRequest();
             }
 
             @Override
             public void onFailure(Call<ApiResponse<AccountsData>> call, Throwable t) {
+                if (call.isCanceled()) {
+                    finishAccountsRequest();
+                    return;
+                }
                 Toast.makeText(DashboardActivity.this, "Eroare de conexiune", Toast.LENGTH_SHORT).show();
                 showBalanceContent();
+                finishAccountsRequest();
             }
         });
     }
@@ -824,13 +906,44 @@ public class DashboardActivity extends AppCompatActivity {
 
 
     private void loadTransactionsForAccount(Account account) {
-        ApiClient.getTransactionService().getTransactions(account.id, 10, 0)
+        if (transactionsCall != null) {
+            transactionsCall.cancel();
+        }
+
+        // Reset pagination
+        transactionsOffset = 0;
+        transactionsHasMore = true;
+        allApiTransactions.clear();
+
+        final int requestedAccountId = account.id;
+        final boolean isAccountTransition = requestedAccountId != displayedTransactionsAccountId;
+        if (isAccountTransition || transactionItems.isEmpty()) {
+            showTransactionsLoadingState();
+        }
+
+        transactionsCall = ApiClient.getTransactionService().getTransactions(account.id, TRANSACTIONS_PAGE_SIZE, 0);
+        transactionsCall
                 .enqueue(new Callback<ApiResponse<TransactionsData>>() {
                     @Override
                     public void onResponse(Call<ApiResponse<TransactionsData>> call, Response<ApiResponse<TransactionsData>> response) {
+                        if (call.isCanceled() || !isCurrentAccount(requestedAccountId)) {
+                            clearTransactionsCall(call);
+                            return;
+                        }
+
                         if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                            TransactionsData data = response.body().getData();
                             List<com.example.swiftbank.api.dto.response.data.success.transaction.Transaction> apiTransactions =
-                                    response.body().getData().getTransactions();
+                                    data.getTransactions();
+
+                            // Update pagination state
+                            if (data.getPagination() != null) {
+                                transactionsHasMore = data.getPagination().hasMore();
+                            } else {
+                                transactionsHasMore = apiTransactions.size() >= TRANSACTIONS_PAGE_SIZE;
+                            }
+                            transactionsOffset = apiTransactions.size();
+                            allApiTransactions.addAll(apiTransactions);
 
                             transactionItems.clear();
                             String lastDateGroup = "";
@@ -847,20 +960,138 @@ public class DashboardActivity extends AppCompatActivity {
                                 transactionItems.add(transaction);
                             }
 
+                            displayedTransactionsAccountId = requestedAccountId;
                             if (transactionsAdapter != null) {
-                                // Animație subtilă de refresh
-                                animateTransactionsRefresh();
+                                boolean isLoadingVisible = transactionsSkeleton != null
+                                        && transactionsSkeleton.getVisibility() == View.VISIBLE;
+                                if (isAccountTransition || isLoadingVisible) {
+                                    transactionsAdapter.notifyDataSetChanged();
+                                } else {
+                                    animateTransactionsRefresh();
+                                }
                             }
                             updateTransactionsVisibility();
+                        } else {
+                            showTransactionsErrorState(requestedAccountId, isAccountTransition);
+                            updateTransactionsVisibility();
                         }
+                        clearTransactionsCall(call);
                     }
 
                     @Override
                     public void onFailure(Call<ApiResponse<TransactionsData>> call, Throwable t) {
+                        if (call.isCanceled()) {
+                            clearTransactionsCall(call);
+                            return;
+                        }
                         Toast.makeText(DashboardActivity.this, "Eroare la incarcarea tranzactiilor", Toast.LENGTH_SHORT).show();
+                        showTransactionsErrorState(requestedAccountId, isAccountTransition);
                         updateTransactionsVisibility();
+                        clearTransactionsCall(call);
                     }
                 });
+    }
+
+    private void loadMoreTransactions() {
+        if (isLoadingMoreTransactions || !transactionsHasMore || accounts.isEmpty()) return;
+
+        isLoadingMoreTransactions = true;
+        final Account account = accounts.get(selectedAccountIndex);
+
+        // Add loading skeleton
+        transactionItems.add(new LoadingSkeleton());
+        transactionsAdapter.notifyItemInserted(transactionItems.size() - 1);
+
+        ApiClient.getTransactionService().getTransactions(account.id, TRANSACTIONS_PAGE_SIZE, transactionsOffset)
+                .enqueue(new Callback<ApiResponse<TransactionsData>>() {
+                    @Override
+                    public void onResponse(Call<ApiResponse<TransactionsData>> call, Response<ApiResponse<TransactionsData>> response) {
+                        // Remove loading skeleton
+                        int skeletonIndex = -1;
+                        for (int i = transactionItems.size() - 1; i >= 0; i--) {
+                            if (transactionItems.get(i) instanceof LoadingSkeleton) {
+                                skeletonIndex = i;
+                                break;
+                            }
+                        }
+                        if (skeletonIndex >= 0) {
+                            transactionItems.remove(skeletonIndex);
+                            transactionsAdapter.notifyItemRemoved(skeletonIndex);
+                        }
+
+                        if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                            TransactionsData data = response.body().getData();
+                            List<com.example.swiftbank.api.dto.response.data.success.transaction.Transaction> newTransactions =
+                                    data.getTransactions();
+
+                            if (data.getPagination() != null) {
+                                transactionsHasMore = data.getPagination().hasMore();
+                            } else {
+                                transactionsHasMore = newTransactions.size() >= TRANSACTIONS_PAGE_SIZE;
+                            }
+                            transactionsOffset += newTransactions.size();
+                            allApiTransactions.addAll(newTransactions);
+
+                            // Find the last date group
+                            String lastDateGroup = "";
+                            for (int i = transactionItems.size() - 1; i >= 0; i--) {
+                                Object item = transactionItems.get(i);
+                                if (item instanceof String) {
+                                    lastDateGroup = (String) item;
+                                    break;
+                                }
+                            }
+
+                            int insertPosition = transactionItems.size();
+                            List<Object> newItems = new ArrayList<>();
+
+                            for (com.example.swiftbank.api.dto.response.data.success.transaction.Transaction t : newTransactions) {
+                                String dateGroup = getDateGroup(t.getCreatedAt());
+
+                                if (!dateGroup.equals(lastDateGroup)) {
+                                    newItems.add(dateGroup);
+                                    lastDateGroup = dateGroup;
+                                }
+
+                                Transaction transaction = createTransactionItem(t, account.currency);
+                                newItems.add(transaction);
+                            }
+
+                            transactionItems.addAll(newItems);
+                            transactionsAdapter.notifyItemRangeInserted(insertPosition, newItems.size());
+                        }
+                        isLoadingMoreTransactions = false;
+                    }
+
+                    @Override
+                    public void onFailure(Call<ApiResponse<TransactionsData>> call, Throwable t) {
+                        // Remove loading skeleton
+                        int skeletonIndex = -1;
+                        for (int i = transactionItems.size() - 1; i >= 0; i--) {
+                            if (transactionItems.get(i) instanceof LoadingSkeleton) {
+                                skeletonIndex = i;
+                                break;
+                            }
+                        }
+                        if (skeletonIndex >= 0) {
+                            transactionItems.remove(skeletonIndex);
+                            transactionsAdapter.notifyItemRemoved(skeletonIndex);
+                        }
+                        isLoadingMoreTransactions = false;
+                    }
+                });
+    }
+
+    private boolean isCurrentAccount(int accountId) {
+        return !accounts.isEmpty()
+                && selectedAccountIndex < accounts.size()
+                && accounts.get(selectedAccountIndex).id == accountId;
+    }
+
+    private void clearTransactionsCall(Call<ApiResponse<TransactionsData>> call) {
+        if (transactionsCall == call) {
+            transactionsCall = null;
+        }
     }
 
     private String getDateGroup(String createdAt) {
@@ -939,10 +1170,219 @@ public class DashboardActivity extends AppCompatActivity {
             case "TRANSFER_OUT":
                 return R.drawable.ic_transfer_out;
             case "BILL":
-                return R.drawable.ic_payments;
+                if (t instanceof BillTransaction) {
+                    BillTransaction bill = (BillTransaction) t;
+                    return getBillIconForCategory(bill.getBillerCategory());
+                }
+                return getBillIconForCategory(t.getSubtitle());
+            case "CARD_PENDING_APPROVAL":
+                return getCategoryIconForTransaction(t, R.drawable.ic_card);
             case "CARD":
             default:
-                return R.drawable.ic_shopping;
+                return getCategoryIconForTransaction(t, R.drawable.ic_shopping);
+        }
+    }
+
+    private int getBillIconForCategory(String category) {
+        if (category == null) return R.drawable.ic_receipt;
+        switch (category.toLowerCase()) {
+            case "utilities":
+                return R.drawable.ic_utilities;
+            case "telecom":
+                return R.drawable.ic_phone;
+            case "internet":
+                return R.drawable.ic_wifi;
+            case "tv":
+                return R.drawable.ic_tv;
+            case "insurance":
+                return R.drawable.ic_shield;
+            default:
+                return R.drawable.ic_receipt;
+        }
+    }
+
+    private int getBillCategoryColor(String category) {
+        if (category == null) return 0xFF6B7280;
+        switch (category.toLowerCase()) {
+            case "utilities":
+                return 0xFFF59E0B;
+            case "telecom":
+                return 0xFF3B82F6;
+            case "internet":
+                return 0xFF10B981;
+            case "tv":
+                return 0xFF8B5CF6;
+            case "insurance":
+                return 0xFFEF4444;
+            default:
+                return 0xFF6B7280;
+        }
+    }
+
+    private String getBillCategoryDisplayName(String category) {
+        if (category == null || category.isEmpty()) return "Plată factură";
+        switch (category.toLowerCase()) {
+            case "utilities":
+                return "Utilități";
+            case "telecom":
+                return "Telecom";
+            case "internet":
+                return "Internet";
+            case "tv":
+                return "TV & Cablu";
+            case "insurance":
+                return "Asigurări";
+            default:
+                return category.substring(0, 1).toUpperCase() + category.substring(1);
+        }
+    }
+
+    private int getCategoryIconForTransaction(com.example.swiftbank.api.dto.response.data.success.transaction.Transaction transaction,
+                                              int fallback) {
+        String iconName = transaction.getCategoryIcon();
+        if (iconName == null || iconName.trim().isEmpty()) {
+            iconName = transaction.getCategoryName();
+        }
+        return getCategoryIconResource(iconName, fallback);
+    }
+
+    private int getCategoryIconResource(String iconName, int fallback) {
+        if (iconName == null || iconName.trim().isEmpty()) {
+            return fallback;
+        }
+
+        switch (iconName.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "food":
+            case "ic_category_food":
+                return R.drawable.ic_category_food;
+            case "shopping":
+            case "ic_category_shopping":
+                return R.drawable.ic_category_shopping;
+            case "transport":
+            case "ic_category_transport":
+                return R.drawable.ic_category_transport;
+            case "entertainment":
+            case "ic_category_entertainment":
+                return R.drawable.ic_category_entertainment;
+            case "groceries":
+            case "ic_category_groceries":
+                return R.drawable.ic_category_groceries;
+            case "health":
+            case "ic_category_health":
+                return R.drawable.ic_category_health;
+            case "utilities":
+            case "ic_category_utilities":
+                return R.drawable.ic_category_utilities;
+            case "telecom":
+            case "ic_category_telecom":
+                return R.drawable.ic_phone;
+            case "internet":
+            case "ic_category_internet":
+                return R.drawable.ic_wifi;
+            case "tv":
+            case "ic_category_tv":
+                return R.drawable.ic_tv;
+            case "insurance":
+            case "ic_category_insurance":
+                return R.drawable.ic_shield;
+            case "travel":
+            case "ic_category_travel":
+                return R.drawable.ic_category_travel;
+            case "services":
+            case "ic_category_services":
+                return R.drawable.ic_category_services;
+            case "subscriptions":
+            case "ic_category_subscriptions":
+                return R.drawable.ic_category_entertainment;
+            case "other":
+            case "ic_category_other":
+                return R.drawable.ic_category_other;
+            default:
+                return fallback;
+        }
+    }
+
+    private int getCategoryColorForTransaction(com.example.swiftbank.api.dto.response.data.success.transaction.Transaction transaction,
+                                               int fallback) {
+        String categoryName = transaction.getCategoryName();
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            return fallback;
+        }
+
+        switch (categoryName.trim().toLowerCase(Locale.ROOT)) {
+            case "food":
+                return 0xFFF97316;
+            case "shopping":
+                return 0xFF8B5CF6;
+            case "transport":
+                return 0xFF3B82F6;
+            case "entertainment":
+                return 0xFFEC4899;
+            case "health":
+                return 0xFF10B981;
+            case "travel":
+                return 0xFF06B6D4;
+            case "services":
+                return 0xFF6366F1;
+            case "subscriptions":
+                return 0xFFF59E0B;
+            case "utilities":
+                return 0xFFF59E0B;
+            case "telecom":
+                return 0xFF3B82F6;
+            case "internet":
+                return 0xFF10B981;
+            case "tv":
+                return 0xFF8B5CF6;
+            case "insurance":
+                return 0xFFEF4444;
+            case "groceries":
+                return 0xFF22C55E;
+            case "other":
+            default:
+                return fallback != 0 ? fallback : 0xFF6B7280;
+        }
+    }
+
+    private String getCategoryDisplayNameForTransaction(com.example.swiftbank.api.dto.response.data.success.transaction.Transaction transaction) {
+        String categoryName = transaction.getCategoryName();
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            return null;
+        }
+
+        switch (categoryName.trim().toLowerCase(Locale.ROOT)) {
+            case "food":
+                return "Mancare si bauturi";
+            case "shopping":
+                return "Cumparaturi";
+            case "transport":
+                return "Transport";
+            case "entertainment":
+                return "Divertisment";
+            case "groceries":
+                return "Supermarket";
+            case "health":
+                return "Sanatate";
+            case "utilities":
+                return "Utilitati";
+            case "telecom":
+                return "Telecom";
+            case "internet":
+                return "Internet";
+            case "tv":
+                return "TV & Cablu";
+            case "insurance":
+                return "Asigurari";
+            case "travel":
+                return "Calatorii";
+            case "services":
+                return "Servicii";
+            case "subscriptions":
+                return "Abonamente";
+            case "other":
+                return "Altele";
+            default:
+                return categoryName.substring(0, 1).toUpperCase(Locale.ROOT) + categoryName.substring(1);
         }
     }
 
@@ -1081,16 +1521,99 @@ public class DashboardActivity extends AppCompatActivity {
         }
 
         // Tranzacție normală (card, bill, etc.)
-        return new Transaction(
+        if (t instanceof BillTransaction) {
+            BillTransaction bill = (BillTransaction) t;
+            Transaction billTransaction = new Transaction(
+                t.getId(),
+                t.getTransactionType(),
+                bill.getBillerName(),
+                getBillCategoryDisplayName(bill.getBillerCategory()),
+                t.getAmount(),
+                currency,
+                time,
+                iconRes
+            );
+            billTransaction.iconColor = getBillCategoryColor(bill.getBillerCategory());
+            billTransaction.merchantLogoUrl = t.getMerchantLogoUrl();
+            return billTransaction;
+        }
+
+        if (t instanceof CardTransaction) {
+            CardTransaction card = (CardTransaction) t;
+            if (card.isPendingApproval()) {
+                int pendingIconRes = getCategoryIconForTransaction(t, R.drawable.ic_card);
+                Transaction pendingCardTransaction = new Transaction(
+                    t.getId(),
+                    t.getTransactionType(),
+                    card.getMerchantName() != null ? card.getMerchantName() : t.getTitle(),
+                    "Asteapta confirmarea",
+                    t.getAmount(),
+                    currency,
+                    time,
+                    pendingIconRes
+                );
+                pendingCardTransaction.iconColor = getCategoryColorForTransaction(t, 0xFFFF9500);
+                pendingCardTransaction.sessionId = card.getSessionId() != null ? card.getSessionId() : t.getId();
+                pendingCardTransaction.merchantName = card.getMerchantName() != null ? card.getMerchantName() : t.getTitle();
+                pendingCardTransaction.location = card.getLocation();
+                pendingCardTransaction.maskedCard = card.getMaskedCard() != null ? card.getMaskedCard() : card.getCardNumberMasked();
+                pendingCardTransaction.expiresAt = card.getExpiresAt();
+                pendingCardTransaction.merchantLogoUrl = t.getMerchantLogoUrl();
+                return pendingCardTransaction;
+            }
+        }
+
+        String subtitle = t.getSubtitle();
+        if ("CARD".equals(t.getTransactionType()) && "PENDING".equals(t.getStatus())) {
+            subtitle = "Suma blocata";
+        }
+        if ("CARD".equals(t.getTransactionType()) && !"PENDING".equals(t.getStatus())) {
+            String categoryDisplayName = getCategoryDisplayNameForTransaction(t);
+            if (categoryDisplayName != null) {
+                subtitle = categoryDisplayName;
+            }
+        }
+        if ("CARD".equals(t.getTransactionType()) && (subtitle == null || subtitle.isEmpty())) {
+            subtitle = "Plată cu cardul";
+        }
+
+        Transaction transaction = new Transaction(
             t.getId(),
             t.getTransactionType(),
             t.getTitle(),
-            t.getSubtitle(),
+            subtitle,
             t.getAmount(),
             currency,
             time,
             iconRes
         );
+        if ("CARD".equals(t.getTransactionType()) || "BILL".equals(t.getTransactionType())) {
+            transaction.iconColor = getCategoryColorForTransaction(t, 0);
+            transaction.merchantLogoUrl = t.getMerchantLogoUrl();
+        }
+        return transaction;
+    }
+
+    private void openCardPaymentApproval(Transaction transaction) {
+        Intent intent = new Intent(this, CardPaymentApprovalActivity.class);
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_SESSION_ID,
+                transaction.sessionId != null ? transaction.sessionId : transaction.id);
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_MERCHANT_NAME,
+                transaction.merchantName != null ? transaction.merchantName : transaction.title);
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_MERCHANT_LOCATION, transaction.location);
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_AMOUNT, Math.abs(transaction.amount));
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_CURRENCY,
+                transaction.currency != null ? transaction.currency : getCurrentAccountCurrency());
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_MASKED_CARD, transaction.maskedCard);
+        intent.putExtra(CardPaymentApprovalActivity.EXTRA_EXPIRES_AT, transaction.expiresAt);
+        startActivityForResult(intent, REQUEST_CARD_PAYMENT_APPROVAL);
+    }
+
+    private String getCurrentAccountCurrency() {
+        if (!accounts.isEmpty() && selectedAccountIndex < accounts.size()) {
+            return accounts.get(selectedAccountIndex).currency;
+        }
+        return "RON";
     }
 
     private String getInitials(String name) {
@@ -1119,6 +1642,31 @@ public class DashboardActivity extends AppCompatActivity {
                 }).start();
         } else {
             showTransactionsList();
+        }
+    }
+
+    private void showTransactionsLoadingState() {
+        if (transactionsSkeleton == null) return;
+
+        transactionsSkeleton.animate().cancel();
+        rvTransactions.animate().cancel();
+
+        transactionsSkeleton.setAlpha(1f);
+        transactionsSkeleton.setVisibility(View.VISIBLE);
+        rvTransactions.setAlpha(1f);
+        rvTransactions.setVisibility(View.GONE);
+        emptyTransactionsState.setVisibility(View.GONE);
+    }
+
+    private void showTransactionsErrorState(int accountId, boolean clearCurrentItems) {
+        if (!isCurrentAccount(accountId)) return;
+
+        displayedTransactionsAccountId = accountId;
+        if (clearCurrentItems) {
+            transactionItems.clear();
+        }
+        if (clearCurrentItems && transactionsAdapter != null) {
+            transactionsAdapter.notifyDataSetChanged();
         }
     }
 
@@ -1281,10 +1829,35 @@ public class DashboardActivity extends AppCompatActivity {
 
     private void setupTransactionsList() {
         transactionsAdapter = new TransactionsAdapter(transactionItems);
-        rvTransactions.setLayoutManager(new LinearLayoutManager(this));
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        rvTransactions.setLayoutManager(layoutManager);
         rvTransactions.setAdapter(transactionsAdapter);
-        rvTransactions.setNestedScrollingEnabled(false);
-        // updateTransactionsVisibility() se apeleaza doar dupa loadTransactionsForAccount()
+
+        // Infinite scroll listener
+        rvTransactions.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+
+                if (dy > 0 && transactionsHasMore && !isLoadingMoreTransactions) {
+                    int visibleItemCount = layoutManager.getChildCount();
+                    int totalItemCount = layoutManager.getItemCount();
+                    int firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition();
+
+                    if ((visibleItemCount + firstVisibleItemPosition) >= totalItemCount - 3) {
+                        loadMoreTransactions();
+                    }
+                }
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CARD_PAYMENT_APPROVAL && resultCode == RESULT_OK) {
+            requestDashboardRefresh();
+        }
     }
 
     @Override
@@ -1300,11 +1873,29 @@ public class DashboardActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        refreshHandler.removeCallbacks(dashboardRefreshRunnable);
+
+        if (accountsCall != null) {
+            accountsCall.cancel();
+            accountsCall = null;
+        }
+
+        if (transactionsCall != null) {
+            transactionsCall.cancel();
+            transactionsCall = null;
+        }
+
+        if (refreshReceiverRegistered) {
+            unregisterReceiver(refreshReceiver);
+            refreshReceiverRegistered = false;
+        }
 
         // Cleanup realtime subscription
         if (realtimeListener != null && currentUserId != -1) {
             RealtimeManager realtime = RealtimeManager.getInstance();
             realtime.unsubscribeFromUserChanges("accounts", String.valueOf(currentUserId), realtimeListener);
+            realtime.unsubscribeFromUserChanges("card_payment_sessions", String.valueOf(currentUserId), realtimeListener);
+            realtimeListener = null;
         }
     }
 
@@ -1326,6 +1917,8 @@ public class DashboardActivity extends AppCompatActivity {
         }
     }
 
+    static class LoadingSkeleton {}
+
     static class Transaction {
         int id;
         String transactionType;
@@ -1335,6 +1928,13 @@ public class DashboardActivity extends AppCompatActivity {
         String currency;
         String time;
         int iconRes;
+        int iconColor;
+        Integer sessionId;
+        String expiresAt;
+        String maskedCard;
+        String location;
+        String merchantName;
+        String merchantLogoUrl;
 
         // Pentru inițiale/poză (transferuri către persoane)
         boolean showInitials;
@@ -1461,6 +2061,9 @@ public class DashboardActivity extends AppCompatActivity {
                     case "USD":
                         ivFlag.setImageResource(R.drawable.flag_usd);
                         break;
+                    case "GBP":
+                        ivFlag.setImageResource(R.drawable.flag_gbp);
+                        break;
                 }
             }
         }
@@ -1470,6 +2073,7 @@ public class DashboardActivity extends AppCompatActivity {
     class TransactionsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         private static final int TYPE_HEADER = 0;
         private static final int TYPE_TRANSACTION = 1;
+        private static final int TYPE_LOADING = 2;
 
         private List<Object> items;
 
@@ -1479,7 +2083,10 @@ public class DashboardActivity extends AppCompatActivity {
 
         @Override
         public int getItemViewType(int position) {
-            return items.get(position) instanceof String ? TYPE_HEADER : TYPE_TRANSACTION;
+            Object item = items.get(position);
+            if (item instanceof String) return TYPE_HEADER;
+            if (item instanceof LoadingSkeleton) return TYPE_LOADING;
+            return TYPE_TRANSACTION;
         }
 
         @NonNull
@@ -1489,6 +2096,10 @@ public class DashboardActivity extends AppCompatActivity {
                 View view = LayoutInflater.from(parent.getContext())
                         .inflate(R.layout.item_transaction_header, parent, false);
                 return new HeaderViewHolder(view);
+            } else if (viewType == TYPE_LOADING) {
+                View view = LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_transaction_skeleton, parent, false);
+                return new LoadingViewHolder(view);
             } else {
                 View view = LayoutInflater.from(parent.getContext())
                         .inflate(R.layout.item_transaction, parent, false);
@@ -1500,8 +2111,15 @@ public class DashboardActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             if (holder instanceof HeaderViewHolder) {
                 ((HeaderViewHolder) holder).bind((String) items.get(position));
-            } else {
+            } else if (holder instanceof TransactionViewHolder) {
                 ((TransactionViewHolder) holder).bind((Transaction) items.get(position));
+            }
+            // LoadingViewHolder needs no binding
+        }
+
+        class LoadingViewHolder extends RecyclerView.ViewHolder {
+            LoadingViewHolder(@NonNull View itemView) {
+                super(itemView);
             }
         }
 
@@ -1550,6 +2168,11 @@ public class DashboardActivity extends AppCompatActivity {
                     int pos = getAdapterPosition();
                     if (pos != RecyclerView.NO_POSITION && items.get(pos) instanceof Transaction) {
                         Transaction t = (Transaction) items.get(pos);
+                        if ("CARD_PENDING_APPROVAL".equals(t.transactionType)) {
+                            openCardPaymentApproval(t);
+                            return;
+                        }
+
                         Intent intent = new Intent(DashboardActivity.this, com.example.swiftbank.activities.transactions.TransactionDetailsActivity.class);
                         intent.putExtra(com.example.swiftbank.activities.transactions.TransactionDetailsActivity.EXTRA_TRANSACTION_ID, t.id);
                         intent.putExtra(com.example.swiftbank.activities.transactions.TransactionDetailsActivity.EXTRA_TRANSACTION_TYPE, t.transactionType);
@@ -1562,7 +2185,9 @@ public class DashboardActivity extends AppCompatActivity {
             }
 
             void bind(Transaction transaction) {
-                tvMerchantName.setText(transaction.title);
+                tvMerchantName.setText(transaction.isExchange
+                        ? ExchangeTitleFormatter.format(transaction.title, getResources().getDisplayMetrics().density)
+                        : transaction.title);
                 tvCategory.setText(transaction.subtitle);
                 tvTime.setText(transaction.time);
 
@@ -1642,10 +2267,62 @@ public class DashboardActivity extends AppCompatActivity {
                     if (cardInitials != null) cardInitials.setVisibility(View.GONE);
                     if (exchangeIconContainer != null) exchangeIconContainer.setVisibility(View.GONE);
                     try {
-                        ivCategoryIcon.setImageResource(transaction.iconRes);
+                        if (!applyMerchantLogoUrl(transaction)) {
+                            applyIconStyle(transaction);
+                            ivCategoryIcon.setImageResource(transaction.iconRes);
+                        }
                     } catch (Exception e) {
                         ivCategoryIcon.setImageResource(R.drawable.ic_shopping);
                     }
+                }
+            }
+
+            private boolean applyMerchantLogoUrl(Transaction transaction) {
+                if (transaction.merchantLogoUrl == null || transaction.merchantLogoUrl.trim().isEmpty()) {
+                    return false;
+                }
+
+                if (cardIcon instanceof androidx.cardview.widget.CardView) {
+                    ((androidx.cardview.widget.CardView) cardIcon).setCardBackgroundColor(
+                            ContextCompat.getColor(DashboardActivity.this, R.color.white));
+                }
+
+                androidx.core.widget.ImageViewCompat.setImageTintList(ivCategoryIcon, null);
+                ivCategoryIcon.clearColorFilter();
+                setIconImageSize(32);
+                ivCategoryIcon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+                return RemoteImageLoader.load(transaction.merchantLogoUrl, ivCategoryIcon, () -> {
+                    applyIconStyle(transaction);
+                    ivCategoryIcon.setImageResource(transaction.iconRes);
+                });
+            }
+
+            private void applyIconStyle(Transaction transaction) {
+                ivCategoryIcon.setTag(null);
+                if (cardIcon instanceof androidx.cardview.widget.CardView) {
+                    int backgroundColor = transaction.iconColor != 0
+                            ? transaction.iconColor
+                            : ContextCompat.getColor(DashboardActivity.this, R.color.white_10);
+                    ((androidx.cardview.widget.CardView) cardIcon).setCardBackgroundColor(backgroundColor);
+                }
+
+                int iconTint = transaction.iconColor != 0
+                        ? ContextCompat.getColor(DashboardActivity.this, R.color.white)
+                        : ContextCompat.getColor(DashboardActivity.this, R.color.white_60);
+                setIconImageSize(24);
+                ivCategoryIcon.setScaleType(ImageView.ScaleType.CENTER);
+                androidx.core.widget.ImageViewCompat.setImageTintList(
+                        ivCategoryIcon,
+                        android.content.res.ColorStateList.valueOf(iconTint));
+            }
+
+            private void setIconImageSize(int sizeDp) {
+                ViewGroup.LayoutParams params = ivCategoryIcon.getLayoutParams();
+                int sizePx = Math.round(sizeDp * getResources().getDisplayMetrics().density);
+                if (params.width != sizePx || params.height != sizePx) {
+                    params.width = sizePx;
+                    params.height = sizePx;
+                    ivCategoryIcon.setLayoutParams(params);
                 }
             }
 

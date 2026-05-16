@@ -12,6 +12,13 @@ async function registerDevice(userId, deviceId, deviceName, fcmToken) {
         .eq('device_id', deviceId)
         .neq('user_id', userId);
 
+    // SINGLE DEVICE: utilizatorul poate primi push doar pe dispozitivul activ.
+    await config.supabase
+        .from('fcm_tokens')
+        .delete()
+        .eq('user_id', userId)
+        .neq('device_id', deviceId);
+
     const { data, error } = await config.supabase
         .from('fcm_tokens')
         .upsert({
@@ -57,10 +64,29 @@ async function unregisterDevice(userId, deviceId) {
  * Obține toate token-urile FCM pentru un utilizator
  */
 async function getUserDeviceTokens(userId) {
+    const { data: activeSession, error: sessionError } = await config.supabase
+        .from('refresh_tokens')
+        .select('device_id')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (sessionError) {
+        console.error('[Notifications] Error fetching active session:', sessionError);
+        return [];
+    }
+
+    if (!activeSession?.device_id) {
+        console.log(`[Notifications] No active session for user ${userId}`);
+        return [];
+    }
+
     const { data, error } = await config.supabase
         .from('fcm_tokens')
         .select('fcm_token, device_name')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('device_id', activeSession.device_id);
 
     if (error) {
         console.error('[Notifications] Error fetching device tokens:', error);
@@ -125,6 +151,9 @@ async function sendPushNotification(userId, title, body, data = {}) {
             title: title,
             body: body
         },
+        data: Object.fromEntries(
+            Object.entries(data || {}).map(([key, value]) => [key, value == null ? '' : String(value)])
+        ),
         android: {
             priority: 'high',
             notification: {
@@ -165,6 +194,73 @@ async function sendPushNotification(userId, title, body, data = {}) {
         return { sent: true, successCount: response.successCount };
     } catch (error) {
         console.error('[Notifications] Error sending push:', error);
+        return { sent: false, reason: 'send_error', error: error.message };
+    }
+}
+
+/**
+ * Trimite un mesaj silentios catre dispozitivele care urmeaza sa fie delogate.
+ */
+async function notifySessionRevoked(userId, activeDeviceId) {
+    const { data: devices, error } = await config.supabase
+        .from('fcm_tokens')
+        .select('fcm_token, device_id, device_name')
+        .eq('user_id', userId)
+        .neq('device_id', activeDeviceId);
+
+    if (error) {
+        console.error('[Notifications] Error fetching revoked session tokens:', error);
+        return { sent: false, reason: 'fetch_error' };
+    }
+
+    if (!devices || devices.length === 0) {
+        return { sent: false, reason: 'no_revoked_devices' };
+    }
+
+    const tokens = devices.map(device => device.fcm_token).filter(Boolean);
+    if (tokens.length === 0) {
+        return { sent: false, reason: 'no_tokens' };
+    }
+
+    const message = {
+        data: {
+            type: 'SESSION_REVOKED',
+            reason: 'NEW_LOGIN',
+            active_device_id: String(activeDeviceId || '')
+        },
+        android: {
+            priority: 'high'
+        },
+        tokens
+    };
+
+    try {
+        const response = await firebase.messaging().sendEachForMulticast(message);
+        console.log(`[Notifications] Session revoked for user ${userId}: ${response.successCount} success, ${response.failureCount} failed`);
+
+        if (response.failureCount > 0) {
+            const tokensToRemove = [];
+            response.responses.forEach((resp, idx) => {
+                if (!resp.success) {
+                    const errorCode = resp.error?.code;
+                    if (errorCode === 'messaging/invalid-registration-token' ||
+                        errorCode === 'messaging/registration-token-not-registered') {
+                        tokensToRemove.push(tokens[idx]);
+                    }
+                }
+            });
+
+            for (const token of tokensToRemove) {
+                await config.supabase
+                    .from('fcm_tokens')
+                    .delete()
+                    .eq('fcm_token', token);
+            }
+        }
+
+        return { sent: true, successCount: response.successCount };
+    } catch (error) {
+        console.error('[Notifications] Error sending session revoked push:', error);
         return { sent: false, reason: 'send_error', error: error.message };
     }
 }
@@ -219,6 +315,7 @@ export default {
     unregisterDevice,
     getUserDeviceTokens,
     sendPushNotification,
+    notifySessionRevoked,
     notifyTransferReceived,
     notifyTransferSent
 };

@@ -1,5 +1,15 @@
 import services from '../../services/index.js';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function getIdempotencyKey(req) {
+    const headerKey = req.headers['idempotency-key'];
+    const bodyKey = req.body?.idempotency_key;
+    const rawKey = Array.isArray(headerKey) ? headerKey[0] : (headerKey || bodyKey);
+
+    return typeof rawKey === 'string' ? rawKey.trim() : null;
+}
+
 /**
  * POST /api/transfers/validate-iban
  * Validează IBAN și returnează info despre bancă/beneficiar
@@ -109,7 +119,7 @@ async function validateIBAN(req, res) {
 async function createTransfer(req, res) {
     try {
         const userId = req.user.user_id;
-        const idempotencyKey = req.headers['idempotency-key'];
+        const idempotencyKey = getIdempotencyKey(req);
         const {
             from_account_id,
             to_iban,
@@ -117,6 +127,28 @@ async function createTransfer(req, res) {
             amount,
             description
         } = req.body;
+
+        if (idempotencyKey && !UUID_REGEX.test(idempotencyKey)) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'INVALID_IDEMPOTENCY_KEY',
+                    message: 'Idempotency-Key must be a valid UUID'
+                }
+            });
+        }
+
+        if (idempotencyKey) {
+            const existingResponse = await services.transferService.checkIdempotencyKey(
+                userId,
+                idempotencyKey,
+                'POST /api/transfers'
+            );
+
+            if (existingResponse) {
+                return res.status(existingResponse.response_status).json(existingResponse.response_body);
+            }
+        }
 
         // Validări de bază
         if (!from_account_id) {
@@ -270,8 +302,157 @@ async function getBeneficiaries(req, res) {
     }
 }
 
+/**
+ * POST /api/beneficiaries
+ * Adaugă un beneficiar nou
+ */
+async function createBeneficiary(req, res) {
+    try {
+        const userId = req.user.user_id;
+        const { iban, name } = req.body;
+
+        if (!iban) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'MISSING_IBAN',
+                    message: 'IBAN-ul este obligatoriu'
+                }
+            });
+        }
+
+        if (!name) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'MISSING_NAME',
+                    message: 'Numele este obligatoriu'
+                }
+            });
+        }
+
+        // Validare IBAN
+        const validation = services.transferService.validateIBAN(iban);
+        if (!validation.valid) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'INVALID_IBAN',
+                    message: validation.error
+                }
+            });
+        }
+
+        const normalizedIBAN = validation.normalized;
+
+        // Verifică dacă beneficiarul există deja
+        const existing = await services.transferService.getBeneficiaryByIBAN(userId, normalizedIBAN);
+        if (existing) {
+            return res.status(409).json({
+                success: false,
+                error: {
+                    code: 'BENEFICIARY_EXISTS',
+                    message: 'Acest beneficiar există deja'
+                }
+            });
+        }
+
+        // Determină banca
+        const bic = services.transferService.extractBIC(normalizedIBAN);
+        let bankName = null;
+
+        if (bic === services.transferService.SWIFTBANK_BIC) {
+            bankName = 'SwiftBank';
+        } else {
+            const bank = await services.transferService.getBankByBIC(bic);
+            bankName = bank ? bank.name : 'Bancă necunoscută';
+        }
+
+        // Salvează beneficiarul
+        const beneficiary = await services.transferService.saveBeneficiary(
+            userId,
+            normalizedIBAN,
+            name,
+            bankName
+        );
+
+        return res.status(201).json({
+            success: true,
+            message: 'Beneficiar adăugat cu succes',
+            data: {
+                beneficiary_id: beneficiary.beneficiary_id,
+                name: beneficiary.name,
+                iban: beneficiary.iban,
+                bank_name: beneficiary.bank_name,
+                created_at: beneficiary.created_at
+            }
+        });
+
+    } catch (error) {
+        console.error('Error creating beneficiary:', error);
+        return res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Eroare la adăugarea beneficiarului'
+            }
+        });
+    }
+}
+
+/**
+ * DELETE /api/beneficiaries/:id
+ * Șterge un beneficiar
+ */
+async function deleteBeneficiary(req, res) {
+    try {
+        const userId = req.user.user_id;
+        const beneficiaryId = parseInt(req.params.id);
+
+        if (!beneficiaryId || isNaN(beneficiaryId)) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'INVALID_ID',
+                    message: 'ID beneficiar invalid'
+                }
+            });
+        }
+
+        await services.transferService.deleteBeneficiary(userId, beneficiaryId);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Beneficiar șters cu succes'
+        });
+
+    } catch (error) {
+        console.error('Error deleting beneficiary:', error);
+
+        if (error.code === 'PGRST116') {
+            return res.status(404).json({
+                success: false,
+                error: {
+                    code: 'NOT_FOUND',
+                    message: 'Beneficiarul nu a fost găsit'
+                }
+            });
+        }
+
+        return res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Eroare la ștergerea beneficiarului'
+            }
+        });
+    }
+}
+
 export default {
     validateIBAN,
     createTransfer,
-    getBeneficiaries
+    getBeneficiaries,
+    createBeneficiary,
+    deleteBeneficiary
 };

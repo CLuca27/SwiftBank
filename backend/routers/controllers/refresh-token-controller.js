@@ -30,6 +30,26 @@ async function refresh(req, res) {
             });
         } 
 
+        if (decoded.type !== 'refresh') {
+            return res.status(403).json({
+                success: false,
+                error: {
+                    code: 'INVALID_REFRESH_TOKEN',
+                    message: 'Refresh token invalid sau expirat'
+                }
+            });
+        }
+
+        if (decoded.device_id && decoded.device_id !== device_id) {
+            return res.status(403).json({
+                success: false,
+                error: {
+                    code: 'DEVICE_MISMATCH',
+                    message: 'Sesiune invalida pe acest dispozitiv'
+                }
+            });
+        }
+
         const { data: user, error: userError } = await config.supabase
             .from('users')
             .select('user_id, email, first_name, last_name, status, locked_until')
@@ -56,11 +76,14 @@ async function refresh(req, res) {
             });
         }
 
-        // SINGLE DEVICE: Un singur token per user
+        const refreshTokenHash = services.authService.hashCrypto(refresh_token);
+
+        // SINGLE DEVICE: token-ul trebuie sa fie sesiunea activa curenta.
         const { data: storedToken, error: findError } = await config.supabase
             .from('refresh_tokens')
             .select('*')
             .eq('user_id', decoded.user_id)
+            .eq('token_hash', refreshTokenHash)
             .maybeSingle();
 
         if (findError) 
@@ -97,6 +120,11 @@ async function refresh(req, res) {
                 .from('refresh_tokens')
                 .delete()
                 .eq('user_id', decoded.user_id);
+
+            await config.supabase
+                .from('fcm_tokens')
+                .delete()
+                .eq('user_id', decoded.user_id);
             
             return res.status(403).json({
                 success: false,
@@ -115,6 +143,12 @@ async function refresh(req, res) {
                 .from('refresh_tokens')
                 .delete()
                 .eq('token_id', storedToken.token_id);
+
+            await config.supabase
+                .from('fcm_tokens')
+                .delete()
+                .eq('user_id', decoded.user_id)
+                .eq('device_id', storedToken.device_id);
             
             return res.status(403).json({
                 success: false,
@@ -126,8 +160,8 @@ async function refresh(req, res) {
         }
         
         // Generează tokeni noi ÎNTÂI
-        const newAccessToken = services.authService.generateAccessToken(user);
-        const newRefreshToken = services.authService.generateRefreshToken(user);
+        const newAccessToken = services.authService.generateAccessToken(user, device_id);
+        const newRefreshToken = services.authService.generateRefreshToken(user, device_id);
         const newTokenHash = services.authService.hashCrypto(newRefreshToken);
 
         // Salvează noul token ÎNTÂI (pentru robustețe)
@@ -166,7 +200,9 @@ async function refresh(req, res) {
                     user_id: user.user_id,
                     first_name: user.first_name, 
                     last_name: user.last_name,
-                    email: user.email
+                    email: user.email,
+                    status: user.status,
+                    locked_until: user.locked_until
                 }
             }
         });

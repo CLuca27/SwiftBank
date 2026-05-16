@@ -211,7 +211,11 @@ public class RealtimeManager {
      * Dezabonează de la schimbări filtrate după user_id
      */
     public void unsubscribeFromUserChanges(String table, String userId, RealtimeListener listener) {
-        String channel = "realtime:" + table + "-user-" + userId;
+        unsubscribeFromColumnChanges(table, "user_id", userId, listener);
+    }
+
+    public void unsubscribeFromColumnChanges(String table, String column, String value, RealtimeListener listener) {
+        String channel = filteredChannelName(table, column, value);
 
         Set<RealtimeListener> listeners = channelListeners.get(channel);
         if (listeners != null) {
@@ -229,17 +233,24 @@ public class RealtimeManager {
      * Abonează la schimbări filtrate după user_id
      */
     public void subscribeToUserChanges(String table, String userId, RealtimeListener listener) {
-        // Folosim un channel unic pentru acest subscription
-        String channel = "realtime:" + table + "-user-" + userId;
+        subscribeToColumnChanges(table, "user_id", userId, listener);
+    }
+
+    public void subscribeToColumnChanges(String table, String column, String value, RealtimeListener listener) {
+        String channel = filteredChannelName(table, column, value);
 
         channelListeners.computeIfAbsent(channel, k -> new HashSet<>()).add(listener);
 
         // Stocăm info pentru reconectare
-        channelSubscriptions.put(channel, new SubscriptionInfo(table, "user_id", "eq", userId));
+        channelSubscriptions.put(channel, new SubscriptionInfo(table, column, "eq", value));
 
         if (isConnected && !joinedChannels.contains(channel)) {
-            joinChannelWithFilter(channel, table, "user_id", "eq", userId);
+            joinChannelWithFilter(channel, table, column, "eq", value);
         }
+    }
+
+    private String filteredChannelName(String table, String column, String value) {
+        return "realtime:" + table + "-" + column + "-" + value;
     }
 
     private void joinChannel(String channel) {
