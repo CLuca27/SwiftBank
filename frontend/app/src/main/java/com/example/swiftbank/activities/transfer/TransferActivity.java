@@ -579,7 +579,8 @@ public class TransferActivity extends AppCompatActivity {
         ApiClient.getTransferService().createTransfer(idempotencyKey, request)
                 .enqueue(new Callback<ApiResponse<TransferResultData>>() {
                     @Override
-                    public void onResponse(Call<ApiResponse<TransferResultData>> call, Response<ApiResponse<TransferResultData>> response) {
+                    public void onResponse(Call<ApiResponse<TransferResultData>> call,
+                                           Response<ApiResponse<TransferResultData>> response) {
                         if (isFinishing() || isDestroyed()) return;
 
                         isTransferring = false;

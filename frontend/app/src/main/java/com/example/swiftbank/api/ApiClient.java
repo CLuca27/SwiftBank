@@ -25,19 +25,37 @@ import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-public class ApiClient {
+public final class ApiClient {
 
     //Pentru conectare la server: 16.170.238.26
     //Pentru conectare la server local: 10.0.2.2
-    private static final String BASE_URL = "http://10.0.2.2:8618";
+    private static final String BASE_URL = "http://10.0.2.2:8080";
 
-    private static Retrofit retrofit = null;
-    private static boolean isInitialized = false;
+    private static volatile boolean isInitialized = false;
+    private static Retrofit retrofit;
+
+    private static AuthService authService;
+    private static PlacesService placesService;
+    private static AccountService accountService;
+    private static TransactionService transactionService;
+    private static UserService userService;
+    private static RatesService ratesService;
+    private static TransferService transferService;
+    private static CardService cardService;
+    private static CardPaymentService cardPaymentService;
+    private static BillService billService;
+    private static StatisticsService statisticsService;
+
+    private ApiClient() {
+    }
 
     // Apelat in SwiftBankApplication.onCreate()
-    public static void init(Context context) {
+    public static synchronized void init(Context context) {
         if (isInitialized) {
             return;
+        }
+        if (context == null) {
+            throw new IllegalArgumentException("Contextul nu poate fi null la initializarea ApiClient");
         }
 
         Context appContext = context.getApplicationContext();
@@ -61,14 +79,28 @@ public class ApiClient {
                 .addConverterFactory(GsonConverterFactory.create(GsonProvider.getGson()))
                 .build();
 
+        authService = createService(AuthService.class);
+        placesService = createService(PlacesService.class);
+        accountService = createService(AccountService.class);
+        transactionService = createService(TransactionService.class);
+        userService = createService(UserService.class);
+        ratesService = createService(RatesService.class);
+        transferService = createService(TransferService.class);
+        cardService = createService(CardService.class);
+        cardPaymentService = createService(CardPaymentService.class);
+        billService = createService(BillService.class);
+        statisticsService = createService(StatisticsService.class);
+
         isInitialized = true;
     }
-
-    public static Retrofit getRetrofit() {
+    private static Retrofit getRetrofit() {
         if (!isInitialized) {
             throw new IllegalStateException("ApiClient nu a fost initializat! Apeleaza ApiClient.init(context) in Application.onCreate()");
         }
         return retrofit;
+    }
+    private static <T> T createService(Class<T> serviceClass) {
+        return retrofit.create(serviceClass);
     }
 
     public static String getBaseUrl() {
@@ -76,46 +108,57 @@ public class ApiClient {
     }
 
     public static AuthService getAuthService() {
-        return getRetrofit().create(AuthService.class);
+        getRetrofit();
+        return authService;
     }
 
     public static PlacesService getPlacesService() {
-        return getRetrofit().create(PlacesService.class);
+        getRetrofit();
+        return placesService;
     }
 
     public static AccountService getAccountService() {
-        return getRetrofit().create(AccountService.class);
+        getRetrofit();
+        return accountService;
     }
 
     public static TransactionService getTransactionService() {
-        return getRetrofit().create(TransactionService.class);
+        getRetrofit();
+        return transactionService;
     }
 
     public static UserService getUserService() {
-        return getRetrofit().create(UserService.class);
+        getRetrofit();
+        return userService;
     }
 
     public static RatesService getRatesService() {
-        return getRetrofit().create(RatesService.class);
+        getRetrofit();
+        return ratesService;
     }
 
     public static TransferService getTransferService() {
-        return getRetrofit().create(TransferService.class);
+        getRetrofit();
+        return transferService;
     }
 
     public static CardService getCardService() {
-        return getRetrofit().create(CardService.class);
+        getRetrofit();
+        return cardService;
     }
 
     public static CardPaymentService getCardPaymentService() {
-        return getRetrofit().create(CardPaymentService.class);
+        getRetrofit();
+        return cardPaymentService;
     }
 
     public static BillService getBillService() {
-        return getRetrofit().create(BillService.class);
+        getRetrofit();
+        return billService;
     }
 
     public static StatisticsService getStatisticsService() {
-        return getRetrofit().create(StatisticsService.class);
+        getRetrofit();
+        return statisticsService;
     }
 }

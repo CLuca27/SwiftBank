@@ -81,7 +81,7 @@ public class TokenAuthenticator implements Authenticator {
         }
 
         synchronized (LOCK) {
-            // Verifică dacă token-ul a fost deja refresh-uit de alt thread
+            // Verifică dacă token-ul a fost deja actualizat de alt thread
             String currentToken = tokenManager.getAccessToken();
             String requestToken = authHeader.replace("Bearer ", "");
 

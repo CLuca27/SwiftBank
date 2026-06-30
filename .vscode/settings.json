@@ -1,0 +1,24 @@
+{
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/.gradle/**": true,
+    "**/.idea/**": true,
+    "**/.kotlin/**": true,
+    "**/build/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.gradle": true,
+    "**/.idea": true,
+    "**/.kotlin": true,
+    "**/build": true
+  },
+  "typescript.tsserver.excludeDirectories": [
+    "backend/node_modules",
+    "frontend/.gradle",
+    "frontend/build",
+    "frontend/app/build"
+  ]
+}

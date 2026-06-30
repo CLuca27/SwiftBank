@@ -229,7 +229,6 @@ public class StatisticsActivity extends AppCompatActivity {
                     }
                 });
     }
-
     private void displayStatistics(StatisticsData data) {
         if (data.getSummary().getTransactionCount() == 0) {
             showEmpty();
