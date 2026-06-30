@@ -82,7 +82,7 @@
             android:src="@drawable/ic_check_circle"
             android:visibility="gone"
             app:tint="@color/green_accent"
-            tools:visibility="visible" />
+            tools:visibility="gone" />
 
     </LinearLayout>
 

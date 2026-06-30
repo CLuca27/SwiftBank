@@ -849,6 +849,7 @@ public class ExchangeActivity extends AppCompatActivity {
                 tvAccountName.setText("Personal · " + account.getCurrency());
                 tvBalance.setText(balanceFormat.format(account.getBalance()));
                 tvCurrency.setText(getCurrencySymbol(account.getCurrency()));
+                itemView.setSelected(false);
                 ivSelected.setVisibility(View.GONE);
             }
         }

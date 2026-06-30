@@ -25,15 +25,15 @@
         <item name="android:importantForAutofill">no</item>
     </style>
 
-    <!-- Original NumpadButton for PIN screens -->
+    <!-- Adaptive NumpadButton for PIN screens -->
     <style name="NumpadButton">
-        <item name="android:layout_width">80dp</item>
-        <item name="android:layout_height">80dp</item>
-        <item name="android:layout_margin">8dp</item>
+        <item name="android:layout_width">@dimen/pin_numpad_button_size</item>
+        <item name="android:layout_height">@dimen/pin_numpad_button_size</item>
+        <item name="android:layout_margin">@dimen/pin_numpad_button_margin</item>
         <item name="android:background">@drawable/numpad_button_background</item>
         <item name="android:gravity">center</item>
         <item name="android:textColor">@color/text_primary</item>
-        <item name="android:textSize">28sp</item>
+        <item name="android:textSize">@dimen/pin_numpad_text_size</item>
         <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>

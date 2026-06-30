@@ -648,7 +648,8 @@ public class TransferAmountActivity extends AppCompatActivity {
 
                 boolean isSelected = selectedAccount != null &&
                         selectedAccount.getAccountId() == account.getAccountId();
-                ivSelected.setVisibility(isSelected ? View.VISIBLE : View.GONE);
+                itemView.setSelected(isSelected);
+                ivSelected.setVisibility(View.GONE);
             }
         }
     }

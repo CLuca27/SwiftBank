@@ -35,7 +35,7 @@
         android:id="@+id/titleSection"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="@dimen/pin_title_top_margin"
         android:gravity="center_horizontal"
         android:orientation="vertical"
         android:paddingHorizontal="32dp"
@@ -68,7 +68,7 @@
         android:id="@+id/dotsContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="52dp"
+        android:layout_marginTop="@dimen/pin_dots_top_margin"
         android:gravity="center"
         android:orientation="horizontal"
         android:clipChildren="false"
@@ -79,44 +79,44 @@
 
         <View
             android:id="@+id/dot1"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginHorizontal="7dp"
+            android:layout_width="@dimen/pin_dot_size"
+            android:layout_height="@dimen/pin_dot_size"
+            android:layout_marginHorizontal="@dimen/pin_dot_margin"
             android:background="@drawable/pin_dot_empty" />
 
         <View
             android:id="@+id/dot2"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginHorizontal="7dp"
+            android:layout_width="@dimen/pin_dot_size"
+            android:layout_height="@dimen/pin_dot_size"
+            android:layout_marginHorizontal="@dimen/pin_dot_margin"
             android:background="@drawable/pin_dot_empty" />
 
         <View
             android:id="@+id/dot3"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginHorizontal="7dp"
+            android:layout_width="@dimen/pin_dot_size"
+            android:layout_height="@dimen/pin_dot_size"
+            android:layout_marginHorizontal="@dimen/pin_dot_margin"
             android:background="@drawable/pin_dot_empty" />
 
         <View
             android:id="@+id/dot4"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginHorizontal="7dp"
+            android:layout_width="@dimen/pin_dot_size"
+            android:layout_height="@dimen/pin_dot_size"
+            android:layout_marginHorizontal="@dimen/pin_dot_margin"
             android:background="@drawable/pin_dot_empty" />
 
         <View
             android:id="@+id/dot5"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginHorizontal="7dp"
+            android:layout_width="@dimen/pin_dot_size"
+            android:layout_height="@dimen/pin_dot_size"
+            android:layout_marginHorizontal="@dimen/pin_dot_margin"
             android:background="@drawable/pin_dot_empty" />
 
         <View
             android:id="@+id/dot6"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginHorizontal="7dp"
+            android:layout_width="@dimen/pin_dot_size"
+            android:layout_height="@dimen/pin_dot_size"
+            android:layout_marginHorizontal="@dimen/pin_dot_margin"
             android:background="@drawable/pin_dot_empty" />
 
     </LinearLayout>
@@ -124,8 +124,8 @@
     <!-- Biometric Icon (pentru login, ascuns la register) -->
     <ImageView
         android:id="@+id/btnBiometric"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="@dimen/pin_biometric_size"
+        android:layout_height="@dimen/pin_biometric_size"
         android:layout_marginStart="24dp"
         android:clickable="true"
         android:contentDescription="Autentificare biometrică"
@@ -155,7 +155,7 @@
         android:id="@+id/numpadGrid"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="48dp"
+        android:layout_marginBottom="@dimen/pin_numpad_bottom_margin"
         android:columnCount="3"
         android:rowCount="4"
         app:layout_constraintBottom_toTopOf="@id/tvForgotPin"
@@ -212,9 +212,9 @@
 
         <!-- Row 4 -->
         <View
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_margin="8dp" />
+            android:layout_width="@dimen/pin_numpad_button_size"
+            android:layout_height="@dimen/pin_numpad_button_size"
+            android:layout_margin="@dimen/pin_numpad_button_margin" />
 
         <TextView
             android:id="@+id/btn0"
@@ -223,14 +223,14 @@
 
         <ImageView
             android:id="@+id/btnBackspace"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_margin="8dp"
+            android:layout_width="@dimen/pin_numpad_button_size"
+            android:layout_height="@dimen/pin_numpad_button_size"
+            android:layout_margin="@dimen/pin_numpad_button_margin"
             android:background="@drawable/numpad_button_background"
             android:clickable="true"
             android:contentDescription="Șterge"
             android:focusable="true"
-            android:padding="24dp"
+            android:padding="@dimen/pin_numpad_backspace_padding"
             android:src="@drawable/ic_backspace" />
 
     </GridLayout>
@@ -240,7 +240,7 @@
         android:id="@+id/tvForgotPin"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="36dp"
+        android:layout_marginBottom="@dimen/pin_forgot_bottom_margin"
         android:clickable="true"
         android:focusable="true"
         android:fontFamily="sans-serif-medium"
@@ -266,8 +266,8 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <ProgressBar
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="@dimen/pin_loading_size"
+            android:layout_height="@dimen/pin_loading_size"
             android:layout_gravity="center"
             android:indeterminateTint="@color/white" />
 

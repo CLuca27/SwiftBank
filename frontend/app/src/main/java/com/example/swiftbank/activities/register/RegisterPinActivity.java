@@ -96,7 +96,7 @@ public class RegisterPinActivity extends AppCompatActivity {
 
         // Ascunde elementele de login
         findViewById(R.id.btnBiometric).setVisibility(View.GONE);
-        findViewById(R.id.tvForgotPin).setVisibility(View.GONE);
+        findViewById(R.id.tvForgotPin).setVisibility(View.INVISIBLE);
 
         // Inițializează dots
         dots = new View[PIN_LENGTH];

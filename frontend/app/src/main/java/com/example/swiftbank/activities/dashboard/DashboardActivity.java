@@ -2048,7 +2048,8 @@ public class DashboardActivity extends AppCompatActivity {
                 tvBalance.setText(formatBalance(account.balance));
                 tvCurrency.setText(getCurrencySymbol(account.currency));
 
-                ivSelected.setVisibility(isSelected ? View.VISIBLE : View.GONE);
+                itemView.setSelected(isSelected);
+                ivSelected.setVisibility(View.GONE);
 
                 // Set flag
                 switch (account.currency) {

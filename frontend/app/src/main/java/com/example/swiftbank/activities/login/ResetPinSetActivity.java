@@ -98,7 +98,7 @@ public class ResetPinSetActivity extends AppCompatActivity {
 
         // Ascunde elementele de login
         findViewById(R.id.btnBiometric).setVisibility(View.GONE);
-        findViewById(R.id.tvForgotPin).setVisibility(View.GONE);
+        findViewById(R.id.tvForgotPin).setVisibility(View.INVISIBLE);
 
         // Initializare dots
         dots = new View[PIN_LENGTH];

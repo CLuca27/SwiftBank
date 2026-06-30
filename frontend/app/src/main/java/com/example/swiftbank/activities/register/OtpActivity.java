@@ -390,12 +390,34 @@ public class OtpActivity extends AppCompatActivity {
     }
 
     private String maskEmail(String email) {
-        // user@example.com -> u***@example.com
-        int atIndex = email.indexOf('@');
-        if (atIndex > 1) {
-            return email.charAt(0) + "***" + email.substring(atIndex);
+        if (email == null) {
+            return "";
         }
-        return email;
+
+        String trimmedEmail = email.trim();
+        int atIndex = trimmedEmail.indexOf('@');
+        if (atIndex <= 0) {
+            return trimmedEmail;
+        }
+
+        String localPart = trimmedEmail.substring(0, atIndex);
+        String domain = trimmedEmail.substring(atIndex);
+        int visiblePrefixLength = localPart.length() > 4 ? 2 : 1;
+        String prefix = localPart.substring(0, visiblePrefixLength);
+        String suffix = localPart.length() > 2
+                ? localPart.substring(localPart.length() - 1)
+                : "";
+        int maskLength = Math.max(3, localPart.length() - prefix.length() - suffix.length());
+
+        return prefix + repeatMask(maskLength) + suffix + domain;
+    }
+
+    private String repeatMask(int count) {
+        StringBuilder mask = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            mask.append('\u2022');
+        }
+        return mask.toString();
     }
 
     @Override

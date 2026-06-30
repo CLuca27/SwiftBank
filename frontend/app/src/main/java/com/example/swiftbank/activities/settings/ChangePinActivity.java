@@ -97,7 +97,7 @@ public class ChangePinActivity extends AppCompatActivity {
         particlesView = findViewById(R.id.particlesView);
 
         // Ascunde forgot pin (nu e relevant aici)
-        findViewById(R.id.tvForgotPin).setVisibility(View.GONE);
+        findViewById(R.id.tvForgotPin).setVisibility(View.INVISIBLE);
 
         // Inițializare dots
         dots = new View[PIN_LENGTH];

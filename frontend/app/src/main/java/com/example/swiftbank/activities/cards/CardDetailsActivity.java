@@ -23,6 +23,7 @@ import com.example.swiftbank.api.ApiClient;
 import com.example.swiftbank.api.dto.request.CardDetailsRequest;
 import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.response.data.success.CardDetailsData;
+import com.example.swiftbank.utils.BiometricHelper;
 import com.example.swiftbank.utils.PinConfirmDialog;
 import com.example.swiftbank.utils.SwiftBankDialog;
 
@@ -213,7 +214,7 @@ public class CardDetailsActivity extends AppCompatActivity {
     }
 
     private void requestAuthentication() {
-        if (biometricAvailable) {
+        if (biometricAvailable && BiometricHelper.isBiometricEnabled(this)) {
             biometricPrompt.authenticate(promptInfo);
         } else {
             showPinDialog();

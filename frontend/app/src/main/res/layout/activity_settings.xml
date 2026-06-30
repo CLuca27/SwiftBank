@@ -91,14 +91,14 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Autentificare biometrică"
+                            android:text="Identificare biometrică"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp" />
 
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Folosește amprenta pentru a te autentifica și a autoriza plăți"
+                            android:text="Folosește biometria pentru conectare și confirmarea acțiunilor sensibile"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
 

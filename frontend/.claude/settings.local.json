@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Read(//a/Proiecte/banking-app-backend/**)"
-    ]
-  }
-}

@@ -88,7 +88,8 @@
             android:exported="false" />
         <activity
             android:name=".activities.login.IdentifyActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".activities.register.RegisterDetailsActivity"
             android:exported="false"

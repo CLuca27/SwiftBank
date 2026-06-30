@@ -27,9 +27,9 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public final class ApiClient {
 
-    //Pentru conectare la server: 16.170.238.26
+    //Pentru conectare la server: 16.170.229.137
     //Pentru conectare la server local: 10.0.2.2
-    private static final String BASE_URL = "http://10.0.2.2:8080";
+    private static final String BASE_URL = "http://16.170.229.137:8080";
 
     private static volatile boolean isInitialized = false;
     private static Retrofit retrofit;

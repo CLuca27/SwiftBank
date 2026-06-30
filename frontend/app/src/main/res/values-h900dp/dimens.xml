@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="pin_title_top_margin">32dp</dimen>
+    <dimen name="pin_dots_top_margin">52dp</dimen>
+    <dimen name="pin_dot_size">18dp</dimen>
+    <dimen name="pin_dot_margin">7dp</dimen>
+    <dimen name="pin_numpad_button_size">80dp</dimen>
+    <dimen name="pin_numpad_button_margin">8dp</dimen>
+    <dimen name="pin_numpad_text_size">28sp</dimen>
+    <dimen name="pin_numpad_backspace_padding">24dp</dimen>
+    <dimen name="pin_numpad_bottom_margin">48dp</dimen>
+    <dimen name="pin_forgot_bottom_margin">36dp</dimen>
+    <dimen name="pin_biometric_size">48dp</dimen>
+    <dimen name="pin_loading_size">48dp</dimen>
+</resources>

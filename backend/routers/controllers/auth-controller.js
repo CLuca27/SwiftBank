@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import config from '../../config/index.js';
 import services from '../../services/index.js';
 import jwt from 'jsonwebtoken'; 
@@ -380,21 +379,27 @@ async function register(req, res) {
         const accessToken = services.authService.generateAccessToken(newUser, device_id);
         const refreshToken = services.authService.generateRefreshToken(newUser, device_id);
 
-        const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7);
+        const refreshTokenHash = services.authService.hashCrypto(refreshToken);
 
-        await config.supabase
+        const { error: tokenInsertError } = await config.supabase
             .from('refresh_tokens')
             .insert({
                 user_id: newUser.user_id,
                 token_hash: refreshTokenHash,
                 device_id: device_id,
-                device_name: device_name || 'Unknown Device',
-                expires_at: expiresAt.toISOString(),
-                used: false,
-                revoked: false
+                device_name: device_name || 'Unknown Device'
             });
+
+        if (tokenInsertError) {
+            console.error('Eroare la salvarea sesiunii dupa register:', tokenInsertError);
+            return res.status(500).json({
+                success: false,
+                error: {
+                    code: 'TOKEN_SAVE_ERROR',
+                    message: 'Contul a fost creat, dar sesiunea nu a putut fi initializata'
+                }
+            });
+        }
 
         return res.status(201).json({
             success: true,

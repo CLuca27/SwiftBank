@@ -132,6 +132,10 @@
                 android:background="@drawable/register_input_background"
                 android:hint="Caută adresa..."
                 android:inputType="textPostalAddress"
+                android:imeOptions="actionDone"
+                android:singleLine="true"
+                android:maxLines="1"
+                android:scrollHorizontally="true"
                 android:paddingHorizontal="16dp"
                 android:drawableEnd="@drawable/ic_search"
                 android:drawableTint="@color/white_50"
@@ -146,12 +150,72 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone">
-                <EditText android:id="@+id/etStreet" android:layout_width="match_parent" android:layout_height="50dp" android:layout_marginTop="12dp" android:background="@drawable/register_input_background" android:hint="Stradă" android:focusable="false" android:paddingHorizontal="16dp" android:textColor="@color/white" android:textSize="15sp" />
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp">
-                    <EditText android:id="@+id/etCity" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:layout_marginEnd="6dp" android:background="@drawable/register_input_background" android:hint="Oraș" android:focusable="false" android:paddingHorizontal="16dp" android:textColor="@color/white" android:textSize="15sp" />
-                    <EditText android:id="@+id/etCounty" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:layout_marginStart="6dp" android:background="@drawable/register_input_background" android:hint="Județ" android:focusable="false" android:paddingHorizontal="16dp" android:textColor="@color/white" android:textSize="15sp" />
+                <TextView
+                    android:id="@+id/etStreet"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="60dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/register_input_background"
+                    android:ellipsize="end"
+                    android:gravity="center_vertical"
+                    android:includeFontPadding="true"
+                    android:lineSpacingExtra="1dp"
+                    android:maxLines="2"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="9dp"
+                    android:textColor="@color/white"
+                    android:textSize="15sp" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:baselineAligned="false">
+                    <TextView
+                        android:id="@+id/etCity"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:minHeight="60dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/register_input_background"
+                        android:ellipsize="end"
+                        android:gravity="center_vertical"
+                        android:includeFontPadding="true"
+                        android:lineSpacingExtra="1dp"
+                        android:maxLines="2"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="9dp"
+                        android:textColor="@color/white"
+                        android:textSize="15sp" />
+                    <TextView
+                        android:id="@+id/etCounty"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:minHeight="60dp"
+                        android:layout_weight="1"
+                        android:layout_marginStart="6dp"
+                        android:background="@drawable/register_input_background"
+                        android:ellipsize="end"
+                        android:gravity="center_vertical"
+                        android:includeFontPadding="true"
+                        android:lineSpacingExtra="1dp"
+                        android:maxLines="2"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="9dp"
+                        android:textColor="@color/white"
+                        android:textSize="15sp" />
                 </LinearLayout>
-                <EditText android:id="@+id/etPostalCode" android:layout_width="140dp" android:layout_height="50dp" android:layout_marginTop="12dp" android:background="@drawable/register_input_background" android:hint="Cod poștal" android:focusable="false" android:paddingHorizontal="16dp" android:textColor="@color/white" android:textSize="15sp" />
+                <TextView
+                    android:id="@+id/etPostalCode"
+                    android:layout_width="140dp"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/register_input_background"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="16dp"
+                    android:textColor="@color/white"
+                    android:textSize="15sp" />
             </LinearLayout>
             <TextView
                 android:id="@+id/tvError"
@@ -193,10 +257,11 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvSuggestions"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:maxHeight="250dp"
             android:paddingVertical="8dp"
-            android:clipToPadding="false" />
+            android:clipToPadding="false"
+            android:nestedScrollingEnabled="true" />
     </androidx.cardview.widget.CardView>
 
     <FrameLayout

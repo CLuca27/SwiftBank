@@ -7,7 +7,10 @@ import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -50,8 +53,8 @@ public class RegisterDetailsActivity extends BackActivity {
     private ImageView btnBack;
     private ScrollView scrollView;
     private CardView suggestionsCard;
-    private EditText etFirstName, etLastName, etCnp;
-    private EditText etAddress, etStreet, etCity, etCounty, etPostalCode;
+    private EditText etFirstName, etLastName, etCnp, etAddress;
+    private TextView etStreet, etCity, etCounty, etPostalCode;
     private RecyclerView rvSuggestions;
     private LinearLayout addressFieldsContainer;
     private TextView tvError;
@@ -69,6 +72,8 @@ public class RegisterDetailsActivity extends BackActivity {
     // Data
     private RegistrationData registrationData;
     private boolean addressSelected = false;
+    private boolean suppressAddressChange = false;
+    private int lastScrollY = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,19 +112,33 @@ public class RegisterDetailsActivity extends BackActivity {
             @Override
             public void onSuggestionClick(PlaceSuggestionData suggestion) {
                 hideSuggestions();
+                hideKeyboard();
+
+                suppressAddressChange = true;
                 etAddress.setText(suggestion.getDescription());
-                etAddress.setSelection(etAddress.getText().length());
+                etAddress.setSelection(0);
+                etAddress.setScrollX(0);
+                etAddress.post(() -> {
+                    etAddress.setSelection(0);
+                    etAddress.setScrollX(0);
+                });
+                suppressAddressChange = false;
+
                 fetchPlaceDetails(suggestion.getPlaceId());
             }
         });
 
         rvSuggestions.setLayoutManager(new LinearLayoutManager(this));
         rvSuggestions.setAdapter(suggestionsAdapter);
+        rvSuggestions.setNestedScrollingEnabled(true);
 
+        lastScrollY = scrollView.getScrollY();
         scrollView.getViewTreeObserver().addOnScrollChangedListener(() -> {
-            if (suggestionsCard.getVisibility() == View.VISIBLE) {
+            int scrollY = scrollView.getScrollY();
+            if (suggestionsCard.getVisibility() == View.VISIBLE && scrollY != lastScrollY) {
                 hideSuggestions();
             }
+            lastScrollY = scrollY;
         });
 
         updateContinueButton(false);
@@ -132,6 +151,23 @@ public class RegisterDetailsActivity extends BackActivity {
             if (suggestionsCard.getVisibility() == View.VISIBLE) {
                 hideSuggestions();
             }
+            return false;
+        });
+
+        etAddress.setOnEditorActionListener((v, actionId, event) -> {
+            boolean isDoneAction = actionId == EditorInfo.IME_ACTION_DONE;
+            boolean isEnterRelease = event != null
+                    && event.getKeyCode() == KeyEvent.KEYCODE_ENTER
+                    && event.getAction() == KeyEvent.ACTION_UP;
+
+            if (isDoneAction || isEnterRelease) {
+                if (autocompleteRunnable != null) {
+                    autocompleteHandler.removeCallbacks(autocompleteRunnable);
+                }
+                hideKeyboard();
+                return true;
+            }
+
             return false;
         });
 
@@ -180,6 +216,10 @@ public class RegisterDetailsActivity extends BackActivity {
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 hideError();
+
+                if (suppressAddressChange) {
+                    return;
+                }
 
                 if (addressSelected) {
                     addressSelected = false;
@@ -257,6 +297,13 @@ public class RegisterDetailsActivity extends BackActivity {
         suggestionsAdapter.clear();
         suggestionsCard.setVisibility(View.GONE);
     }
+    private void hideKeyboard() {
+        InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (inputMethodManager != null) {
+            inputMethodManager.hideSoftInputFromWindow(etAddress.getWindowToken(), 0);
+        }
+        etAddress.clearFocus();
+    }
 
     private void fetchPlaceDetails(String placeId) {
         showLoading(true);
@@ -286,7 +333,7 @@ public class RegisterDetailsActivity extends BackActivity {
 
         etStreet.setText(details.getFullStreet() != null ? details.getFullStreet() : "");
         etCity.setText(details.getCity() != null ? details.getCity() : "");
-        etCounty.setText(details.getCounty() != null ? details.getCounty() : "");
+        etCounty.setText(details.getCounty() != null ? details.getCounty().trim() : "");
         etPostalCode.setText(details.getPostalCode() != null ? details.getPostalCode() : "");
 
         addressFieldsContainer.setVisibility(View.VISIBLE);

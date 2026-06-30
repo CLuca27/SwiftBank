@@ -738,7 +738,8 @@ public class TransferActivity extends AppCompatActivity {
                 // Arată check dacă e selectat
                 boolean isSelected = selectedAccount != null &&
                         selectedAccount.getAccountId() == account.getAccountId();
-                ivSelected.setVisibility(isSelected ? View.VISIBLE : View.GONE);
+                itemView.setSelected(isSelected);
+                ivSelected.setVisibility(View.GONE);
             }
         }
     }
