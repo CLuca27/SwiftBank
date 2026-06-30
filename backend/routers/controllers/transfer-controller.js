@@ -455,4 +455,4 @@ export default {
     getBeneficiaries,
     createBeneficiary,
     deleteBeneficiary
-};
+}; 

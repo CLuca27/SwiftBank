@@ -1,8 +1,8 @@
 import config from '../config/index.js';
 import crypto from 'crypto';
 
-// Cheia pentru criptare CVV (în producție ar fi în env vars)
-const CVV_ENCRYPTION_KEY = process.env.CVV_ENCRYPTION_KEY || 'swiftbank-cvv-secret-key-32ch';
+// Cheia pentru criptare CVV
+const CVV_ENCRYPTION_KEY = process.env.CVV_ENCRYPTION_KEY
 const CVV_IV_LENGTH = 16;
 
 // Criptează CVV

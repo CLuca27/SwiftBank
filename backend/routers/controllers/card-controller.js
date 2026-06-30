@@ -92,8 +92,8 @@ async function getCardDetails(req, res) {
             return res.status(400).json({
                 success: false,
                 error: {
-                    code: 'PIN_REQUIRED',
-                    message: 'PIN-ul este necesar pentru a vedea detaliile cardului'
+                    code: 'AUTH_METHOD_REQUIRED',
+                    message: 'Metoda de autentificare este necesară pentru a vedea detaliile cardului'
                 }
             });
         }

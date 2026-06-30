@@ -45,7 +45,7 @@ apiRouter.put('/user/profile', auth, controllers.user.updateProfile);
 apiRouter.get('/user/settings', auth, controllers.user.getSettings);
 apiRouter.put('/user/settings', auth, controllers.user.updateSettings);
 apiRouter.post('/user/verify-pin', auth, controllers.user.verifyPin);
-apiRouter.put('/user/change-pin', auth, controllers.user.changePin);
+apiRouter.put('/user/change-pin', auth, controllers.user.changePin);                                                   
 
 // Devices (FCM)
 apiRouter.post('/user/devices', auth, controllers.user.registerDevice);

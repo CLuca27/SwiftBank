@@ -5,18 +5,12 @@ import bcrypt from 'bcrypt'
 function generateCode(){
     
     const internalSecret = process.env.OTP_INTERNAL_SECRET || crypto.randomBytes(32);
-    
-   
     const randomBytes = crypto.randomBytes(32);
-    
-    
     const timestamp = Date.now().toString() + process.hrtime.bigint().toString();
-    
     
     if (!generateCode.counter) generateCode.counter = 0;
     generateCode.counter++;
     const counter = generateCode.counter.toString();
-    
     
     const data = Buffer.concat([
         randomBytes,
@@ -24,11 +18,9 @@ function generateCode(){
         Buffer.from(counter)
     ]);
     
-    
     const hmac = crypto.createHmac('sha512', internalSecret)
         .update(data)
         .digest('hex');
-    
     
     const numericValue = BigInt('0x' + hmac.slice(0, 12));
     const otp = (numericValue % 1000000n).toString().padStart(6, '0');
