@@ -10,6 +10,7 @@ import card from "./card-controller.js";
 import bill from "./bill-controller.js";
 import cardPayment from "./card-payment-controller.js";
 import statistics from "./statistics-controller.js";
+import ai from "./ai-controller.js";
 
 
 export default {
@@ -24,5 +25,6 @@ export default {
     card,
     bill,
     cardPayment,
-    statistics
+    statistics,
+    ai
 }

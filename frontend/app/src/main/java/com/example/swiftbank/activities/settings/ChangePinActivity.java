@@ -15,11 +15,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.biometric.BiometricManager;
-import androidx.biometric.BiometricPrompt;
-import androidx.core.content.ContextCompat;
 
 import com.example.swiftbank.R;
 import com.example.swiftbank.api.ApiClient;
@@ -70,10 +66,6 @@ public class ChangePinActivity extends AppCompatActivity {
     private boolean isLoading = false;
     private AnimatorSet bouncingAnimator;
 
-    // Biometric
-    private BiometricPrompt biometricPrompt;
-    private BiometricPrompt.PromptInfo promptInfo;
-    private boolean biometricAvailable = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,7 +75,8 @@ public class ChangePinActivity extends AppCompatActivity {
         initViews();
         setupNumpad();
         setupListeners();
-        setupBiometric();
+        btnBiometric.setVisibility(View.GONE);
+        btnBiometric.setEnabled(false);
         updateUI();
     }
 
@@ -137,89 +130,6 @@ public class ChangePinActivity extends AppCompatActivity {
 
     private void setupListeners() {
         btnBack.setOnClickListener(v -> handleBackPress());
-
-        btnBiometric.setOnClickListener(v -> {
-            if (biometricAvailable && currentState == PinState.VERIFY_CURRENT) {
-                showBiometricPrompt();
-            }
-        });
-    }
-
-    private void setupBiometric() {
-        // Verifică dacă biometria e activată și avem credențiale
-        SharedPreferences prefs = getSharedPreferences("SwiftBankSettings", MODE_PRIVATE);
-        boolean biometricEnabled = prefs.getBoolean("biometric_enabled", false);
-
-        BiometricCredentialsManager credentialsManager = BiometricCredentialsManager.getInstance(this);
-        boolean hasCredentials = credentialsManager.hasCredentials();
-
-        BiometricManager biometricManager = BiometricManager.from(this);
-        int canAuthenticate = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK);
-        boolean deviceSupports = (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS);
-
-        biometricAvailable = biometricEnabled && hasCredentials && deviceSupports;
-
-        if (biometricAvailable) {
-            btnBiometric.setVisibility(View.VISIBLE);
-
-            biometricPrompt = new BiometricPrompt(this, ContextCompat.getMainExecutor(this),
-                    new BiometricPrompt.AuthenticationCallback() {
-                        @Override
-                        public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-                            super.onAuthenticationError(errorCode, errString);
-                            // Utilizatorul poate folosi PIN
-                        }
-
-                        @Override
-                        public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
-                            super.onAuthenticationSucceeded(result);
-                            handleBiometricSuccess();
-                        }
-
-                        @Override
-                        public void onAuthenticationFailed() {
-                            super.onAuthenticationFailed();
-                        }
-                    });
-
-            promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                    .setTitle("Verifică identitatea")
-                    .setSubtitle("Folosește amprenta pentru a continua")
-                    .setNegativeButtonText("Folosește PIN")
-                    .build();
-
-            // Arată prompt automat
-            new Handler(Looper.getMainLooper()).postDelayed(this::showBiometricPrompt, 300);
-        } else {
-            btnBiometric.setVisibility(View.GONE);
-        }
-    }
-
-    private void showBiometricPrompt() {
-        if (biometricPrompt != null && promptInfo != null) {
-            biometricPrompt.authenticate(promptInfo);
-        }
-    }
-
-    private void handleBiometricSuccess() {
-        // Obține PIN-ul din credențiale
-        BiometricCredentialsManager credentialsManager = BiometricCredentialsManager.getInstance(this);
-        String storedPin = credentialsManager.getPin();
-
-        if (storedPin != null && !storedPin.isEmpty()) {
-            verifiedCurrentPin = storedPin;
-
-            // Animează dots rapid
-            for (int i = 0; i < PIN_LENGTH; i++) {
-                final int index = i;
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    dots[index].setBackgroundResource(R.drawable.pin_dot_filled);
-                }, i * 30L);
-            }
-
-            // Treci la pasul următor
-            new Handler(Looper.getMainLooper()).postDelayed(this::transitionToCreateState, PIN_LENGTH * 30L + 200);
-        }
     }
 
     @Override
@@ -365,9 +275,6 @@ public class ChangePinActivity extends AppCompatActivity {
                 resetDots();
                 updateBackspaceVisibility();
 
-                if (biometricAvailable) {
-                    btnBiometric.setVisibility(View.VISIBLE);
-                }
 
                 AnimatorSet fadeIn = createFadeInAnimation();
                 fadeIn.addListener(new AnimatorListenerAdapter() {

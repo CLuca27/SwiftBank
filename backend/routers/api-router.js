@@ -82,6 +82,9 @@ apiRouter.delete('/saved-billers/:id', auth, controllers.bill.deleteSavedBiller)
 apiRouter.post('/bill-payments', auth, controllers.bill.createBillPayment);
 apiRouter.get('/bill-payments', auth, controllers.bill.getBillPayments);
 
+// Swift AI
+apiRouter.post('/ai/chat', auth, controllers.ai.chat);
+
 // Statistics
 apiRouter.get('/statistics', auth, controllers.statistics.getStatistics);
 apiRouter.get('/statistics/balance-history', auth, controllers.statistics.getBalanceHistory);

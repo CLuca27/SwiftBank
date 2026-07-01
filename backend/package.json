@@ -25,6 +25,7 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.1",
     "nodemon": "^3.1.14",
+    "openai": "^6.45.0",
     "supabase": "^2.76.15",
     "twilio": "^5.12.2",
     "xml2js": "^0.6.2"

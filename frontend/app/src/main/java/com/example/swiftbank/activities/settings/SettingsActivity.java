@@ -249,7 +249,7 @@ public class SettingsActivity extends AppCompatActivity {
                     prefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, true).apply();
                     SwiftBankDialog.showSuccessDialog(this,
                         "Biometrie activată",
-                        "La următoarea autentificare cu PIN, amprenta va fi activată pentru login și confirmări.",
+                        "Amprenta va fi activată pentru autentificare și confirmări.",
                         null);
                 } else {
                     switchBiometric.setChecked(false);

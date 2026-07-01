@@ -11,6 +11,8 @@ import cardService from './card-service.js'
 import billService from './bill-service.js'
 import cardPaymentService from './card-payment-service.js'
 import merchantService from './merchant-service.js'
+import aiContextService from './ai-context-service.js'
+import aiService from './ai-service.js'
 
 
 export default {
@@ -26,5 +28,7 @@ export default {
     cardService,
     billService,
     cardPaymentService,
-    merchantService
+    merchantService,
+    aiContextService,
+    aiService
 }
