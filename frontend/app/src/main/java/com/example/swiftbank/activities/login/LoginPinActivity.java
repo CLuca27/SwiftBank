@@ -91,6 +91,9 @@ public class LoginPinActivity extends AppCompatActivity {
     private BiometricPrompt biometricPrompt;
     private BiometricPrompt.PromptInfo promptInfo;
     private boolean biometricEnabled = false;
+    private boolean biometricAutoPromptPending = false;
+    private boolean biometricAutoPromptShown = false;
+    private boolean biometricAutoPromptScheduled = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,6 +107,7 @@ public class LoginPinActivity extends AppCompatActivity {
         setupBiometric();
         updateUI();
         checkInitialLockState();
+        checkBiometricAvailability();
     }
 
     private void getIntentData() {
@@ -129,9 +133,6 @@ public class LoginPinActivity extends AppCompatActivity {
 
         // Afișează elementele de login
         tvForgotPin.setVisibility(View.VISIBLE);
-
-        // Verifică dacă biometria e activată și disponibilă
-        checkBiometricAvailability();
 
         // Inițializează dots
         dots = new View[PIN_LENGTH];
@@ -303,6 +304,7 @@ public class LoginPinActivity extends AppCompatActivity {
     private void login(String pin) {
         Log.d(TAG, "Logging in...");
         showLoading(true);
+        fillMissingIdentifierFromBiometricCredentials();
 
         String deviceId = DeviceDetails.getDeviceId(this);
         String deviceName = DeviceDetails.getDeviceModel();
@@ -529,7 +531,7 @@ public class LoginPinActivity extends AppCompatActivity {
 
         // Verifică dacă avem credențiale salvate
         BiometricCredentialsManager credentialsManager = BiometricCredentialsManager.getInstance(this);
-        boolean hasCredentials = credentialsManager.hasCredentials();
+        boolean hasCredentials = credentialsManager.hasCredentialsFor(phone, email);
 
         // Verifică dacă dispozitivul suportă biometrie
         BiometricManager biometricManager = BiometricManager.from(this);
@@ -540,8 +542,8 @@ public class LoginPinActivity extends AppCompatActivity {
 
         if (biometricEnabled) {
             btnBiometric.setVisibility(View.VISIBLE);
-            // Arată automat prompt-ul biometric la deschiderea ecranului
-            new Handler(Looper.getMainLooper()).postDelayed(this::showBiometricPrompt, 300);
+            biometricAutoPromptPending = true;
+            tryShowPendingBiometricPrompt();
         } else {
             btnBiometric.setVisibility(View.GONE);
         }
@@ -587,16 +589,38 @@ public class LoginPinActivity extends AppCompatActivity {
     }
 
     private void showBiometricPrompt() {
-        if (biometricPrompt != null && promptInfo != null && !isLocked) {
+        if (biometricPrompt != null && promptInfo != null && biometricEnabled && !isLocked) {
+            biometricAutoPromptPending = false;
+            biometricAutoPromptShown = true;
             biometricPrompt.authenticate(promptInfo);
         }
+    }
+
+    private void tryShowPendingBiometricPrompt() {
+        if (!biometricAutoPromptPending || biometricAutoPromptShown || biometricAutoPromptScheduled) {
+            return;
+        }
+
+        if (!biometricEnabled || isLocked || biometricPrompt == null || promptInfo == null) {
+            return;
+        }
+
+        biometricAutoPromptScheduled = true;
+        btnBiometric.postDelayed(() -> {
+            biometricAutoPromptScheduled = false;
+            if (biometricAutoPromptPending && !biometricAutoPromptShown) {
+                showBiometricPrompt();
+            }
+        }, 300);
     }
 
     private void handleBiometricSuccess() {
         BiometricCredentialsManager credentialsManager = BiometricCredentialsManager.getInstance(this);
         String storedPin = credentialsManager.getPin();
 
-        if (storedPin != null && !storedPin.isEmpty()) {
+        if (storedPin != null && !storedPin.isEmpty() && credentialsManager.hasCredentialsFor(phone, email)) {
+            fillMissingIdentifierFromBiometricCredentials();
+
             // Animează dots ca și cum ar fi fost introduse
             for (int i = 0; i < PIN_LENGTH && i < storedPin.length(); i++) {
                 final int index = i;
@@ -620,6 +644,16 @@ public class LoginPinActivity extends AppCompatActivity {
             btnBiometric.setVisibility(View.GONE);
             biometricEnabled = false;
         }
+    }
+
+    private void fillMissingIdentifierFromBiometricCredentials() {
+        if ((phone != null && !phone.isEmpty()) || (email != null && !email.isEmpty())) {
+            return;
+        }
+
+        BiometricCredentialsManager credentialsManager = BiometricCredentialsManager.getInstance(this);
+        phone = credentialsManager.getPhone();
+        email = credentialsManager.getEmail();
     }
 
     // ==================== LOCK TIMER ====================
@@ -659,6 +693,7 @@ public class LoginPinActivity extends AppCompatActivity {
                 setNumpadEnabled(true);
                 resetPinInput();
                 hideError();
+                tryShowPendingBiometricPrompt();
             }
         }.start();
     }
@@ -884,6 +919,12 @@ public class LoginPinActivity extends AppCompatActivity {
     }
 
     // ==================== LIFECYCLE ====================
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+        tryShowPendingBiometricPrompt();
+    }
 
     @Override
     protected void onDestroy() {

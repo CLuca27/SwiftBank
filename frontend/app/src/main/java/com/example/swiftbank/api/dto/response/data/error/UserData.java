@@ -16,6 +16,9 @@ public class UserData {
     @SerializedName("email")
     private String email;
 
+    @SerializedName("phone")
+    private String phone;
+
     @SerializedName("status")
     private String status;
 
@@ -36,6 +39,10 @@ public class UserData {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getPhone() {
+        return phone;
     }
 
     public String getStatus() {

@@ -168,6 +168,7 @@ public class SplashActivity extends AppCompatActivity {
             Intent intent = new Intent(this, LoginPinActivity.class);
             if (data.getUser() != null) {
                 intent.putExtra("email", data.getUser().getEmail());
+                intent.putExtra("phone", data.getUser().getPhone());
                 intent.putExtra("first_name", data.getUser().getFirstName());
                 intent.putExtra("locked_until", data.getUser().getLockedUntil());
             }

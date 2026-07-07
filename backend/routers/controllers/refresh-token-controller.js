@@ -52,7 +52,7 @@ async function refresh(req, res) {
 
         const { data: user, error: userError } = await config.supabase
             .from('users')
-            .select('user_id, email, first_name, last_name, status, locked_until')
+            .select('user_id, email, phone, first_name, last_name, status, locked_until')
             .eq('user_id', decoded.user_id)
             .single();
 
@@ -201,6 +201,7 @@ async function refresh(req, res) {
                     first_name: user.first_name, 
                     last_name: user.last_name,
                     email: user.email,
+                    phone: user.phone,
                     status: user.status,
                     locked_until: user.locked_until
                 }

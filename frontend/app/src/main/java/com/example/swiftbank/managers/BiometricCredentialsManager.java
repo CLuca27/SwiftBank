@@ -73,6 +73,34 @@ public class BiometricCredentialsManager {
         return pin != null && !pin.isEmpty();
     }
 
+    public boolean hasCredentialsFor(String phone, String email) {
+        if (!hasCredentials()) {
+            return false;
+        }
+
+        boolean hasRequestedIdentifier = hasValue(phone) || hasValue(email);
+        if (!hasRequestedIdentifier) {
+            return true;
+        }
+
+        return matches(phone, getPhone()) || matches(email, getEmail());
+    }
+
+    private boolean matches(String requestedValue, String storedValue) {
+        if (!hasValue(requestedValue) || !hasValue(storedValue)) {
+            return false;
+        }
+        return normalize(requestedValue).equals(normalize(storedValue));
+    }
+
+    private boolean hasValue(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private String normalize(String value) {
+        return value.trim().replace(" ", "").toLowerCase();
+    }
+
     /**
      * Obține PIN-ul salvat (după autentificare biometrică reușită).
      */
