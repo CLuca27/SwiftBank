@@ -45,7 +45,7 @@ public class ProfileActivity extends AppCompatActivity {
 
     private ImageView btnBack;
     private CardView cardInitials, cardPhoto, btnChangePhoto;
-    private TextView tvInitials, tvFullName, tvMemberSince;
+    private TextView tvInitials, tvFullName, tvMemberSince, btnDeletePhoto;
     private TextView tvFirstName, tvLastName, tvEmail, tvPhone, tvBirthDate, tvAddress;
     private LinearLayout fieldFirstName, fieldLastName;
     private LinearLayout skeletonContainer, contentContainer;
@@ -89,6 +89,7 @@ public class ProfileActivity extends AppCompatActivity {
         tvInitials = findViewById(R.id.tvInitials);
         tvFullName = findViewById(R.id.tvFullName);
         tvMemberSince = findViewById(R.id.tvMemberSince);
+        btnDeletePhoto = findViewById(R.id.btnDeletePhoto);
         tvFirstName = findViewById(R.id.tvFirstName);
         tvLastName = findViewById(R.id.tvLastName);
         tvEmail = findViewById(R.id.tvEmail);
@@ -106,6 +107,7 @@ public class ProfileActivity extends AppCompatActivity {
         btnBack.setOnClickListener(v -> finish());
 
         btnChangePhoto.setOnClickListener(v -> openImagePicker());
+        btnDeletePhoto.setOnClickListener(v -> showDeletePhotoDialog());
 
         fieldFirstName.setOnClickListener(v -> showEditDialog("Prenume", tvFirstName.getText().toString(), "first_name"));
         fieldLastName.setOnClickListener(v -> showEditDialog("Nume", tvLastName.getText().toString(), "last_name"));
@@ -186,8 +188,13 @@ public class ProfileActivity extends AppCompatActivity {
 
         tvMemberSince.setText("Membru din " + formatMemberDate(profile.getCreatedAt()));
 
+        ivProfilePhoto.setImageDrawable(null);
+        cardPhoto.setVisibility(View.GONE);
+        cardInitials.setVisibility(View.VISIBLE);
+        btnDeletePhoto.setVisibility(View.GONE);
+
         String photoBase64 = profile.getProfilePhoto();
-        if (photoBase64 != null && !photoBase64.isEmpty()) {
+        if (photoBase64 != null && !photoBase64.trim().isEmpty()) {
             try {
                 byte[] decodedBytes = Base64.decode(photoBase64, Base64.DEFAULT);
                 Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
@@ -195,6 +202,7 @@ public class ProfileActivity extends AppCompatActivity {
                     ivProfilePhoto.setImageBitmap(bitmap);
                     cardPhoto.setVisibility(View.VISIBLE);
                     cardInitials.setVisibility(View.GONE);
+                    btnDeletePhoto.setVisibility(View.VISIBLE);
                 }
             } catch (Exception e) {
                 // Keep showing initials
@@ -257,6 +265,7 @@ public class ProfileActivity extends AppCompatActivity {
             cardPhoto.setVisibility(View.VISIBLE);
             cardInitials.setVisibility(View.GONE);
             ivProfilePhoto.setImageBitmap(scaledBitmap);
+            btnDeletePhoto.setVisibility(View.VISIBLE);
 
             uploadProfilePhoto(base64Image);
 
@@ -282,19 +291,82 @@ public class ProfileActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<ApiResponse<ProfileData>> call, Response<ApiResponse<ProfileData>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
-                    Toast.makeText(ProfileActivity.this, "Poza actualizată", Toast.LENGTH_SHORT).show();
+                    currentProfile = response.body().getData();
+                    if (currentProfile != null) {
+                        displayProfile(currentProfile);
+                    }
+                    setResult(RESULT_OK);
+                    Toast.makeText(ProfileActivity.this, "Poza actualizat\u0103", Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(ProfileActivity.this, "Eroare la salvarea pozei", Toast.LENGTH_SHORT).show();
+                    if (currentProfile != null) {
+                        displayProfile(currentProfile);
+                    } else {
+                        cardPhoto.setVisibility(View.GONE);
+                        cardInitials.setVisibility(View.VISIBLE);
+                        btnDeletePhoto.setVisibility(View.GONE);
+                    }
+                }
+
+            }
+            @Override
+            public void onFailure(Call<ApiResponse<ProfileData>> call, Throwable t) {
+                Toast.makeText(ProfileActivity.this, "Eroare de conexiune", Toast.LENGTH_SHORT).show();
+                if (currentProfile != null) {
+                    displayProfile(currentProfile);
+                } else {
                     cardPhoto.setVisibility(View.GONE);
                     cardInitials.setVisibility(View.VISIBLE);
+                    btnDeletePhoto.setVisibility(View.GONE);
+                }
+            }
+        });
+    }
+
+    private boolean hasProfilePhoto() {
+        return currentProfile != null
+                && currentProfile.getProfilePhoto() != null
+                && !currentProfile.getProfilePhoto().trim().isEmpty();
+    }
+
+    private void showDeletePhotoDialog() {
+        if (!hasProfilePhoto()) return;
+
+        new SwiftBankDialog(this)
+                .setIcon(R.drawable.ic_delete)
+                .setTitle("\u0218tergi poza de profil?")
+                .setMessage("Poza curent\u0103 va fi eliminat\u0103, iar \u00een profil vor ap\u0103rea ini\u021bialele tale.")
+                .setPrimaryButton("\u0218terge", v -> deleteProfilePhoto())
+                .setSecondaryButton("Anuleaz\u0103", null)
+                .show();
+    }
+
+    private void deleteProfilePhoto() {
+        UpdateProfileRequest request = new UpdateProfileRequest();
+        request.setProfilePhoto("");
+
+        ApiClient.getUserService().updateProfile(request).enqueue(new Callback<ApiResponse<ProfileData>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<ProfileData>> call, Response<ApiResponse<ProfileData>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {
+                    currentProfile = response.body().getData();
+                    if (currentProfile != null) {
+                        displayProfile(currentProfile);
+                    } else {
+                        cardPhoto.setVisibility(View.GONE);
+                        cardInitials.setVisibility(View.VISIBLE);
+                        btnDeletePhoto.setVisibility(View.GONE);
+                    }
+                    setResult(RESULT_OK);
+                    Toast.makeText(ProfileActivity.this, "Poza a fost \u0219tears\u0103", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(ProfileActivity.this, "Eroare la \u0219tergerea pozei", Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<ApiResponse<ProfileData>> call, Throwable t) {
                 Toast.makeText(ProfileActivity.this, "Eroare de conexiune", Toast.LENGTH_SHORT).show();
-                cardPhoto.setVisibility(View.GONE);
-                cardInitials.setVisibility(View.VISIBLE);
             }
         });
     }

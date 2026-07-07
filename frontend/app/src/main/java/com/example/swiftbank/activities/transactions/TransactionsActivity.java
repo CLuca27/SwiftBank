@@ -1577,7 +1577,10 @@ public class TransactionsActivity extends AppCompatActivity {
         paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
         paint.setTextSize(8);
         paint.setColor(Color.rgb(107, 114, 128));
-        canvas.drawText(fitText(formatStatementStatus(transaction.getStatus()), paint, 202), margin + 104, y + 31, paint);
+        String secondaryText = formatStatementSecondaryLine(transaction);
+        if (!secondaryText.isEmpty()) {
+            canvas.drawText(fitText(secondaryText, paint, 202), margin + 104, y + 31, paint);
+        }
 
         paint.setTextSize(9);
         paint.setColor(Color.rgb(55, 65, 81));
@@ -1756,9 +1759,22 @@ public class TransactionsActivity extends AppCompatActivity {
         return translateStatementCategory(getTransactionCategory(transaction));
     }
 
+    private String formatStatementSecondaryLine(Transaction transaction) {
+        if (transaction instanceof TransferTransaction) {
+            String type = transaction.getTransactionType();
+            if ("TRANSFER_IN".equals(type)) return "primit";
+            if ("TRANSFER_OUT".equals(type)) return "trimis";
+            if ("SELF_IN".equals(type)) return "primit \u00een cont";
+            if ("SELF_OUT".equals(type)) return "trimis din cont";
+            return transaction.getAmount() >= 0 ? "primit" : "trimis";
+        }
+
+        return formatStatementStatus(transaction.getStatus());
+    }
+
     private String formatStatementStatus(String status) {
         if (status == null || status.trim().isEmpty()) {
-            return "status indisponibil";
+            return "";
         }
 
         switch (status.trim().toUpperCase(Locale.ROOT)) {
@@ -1775,6 +1791,11 @@ public class TransactionsActivity extends AppCompatActivity {
             case "CANCELLED":
                 return "anulată";
             default:
+                if ("UNKNOWN".equals(status.trim().toUpperCase(Locale.ROOT))
+                        || "NULL".equals(status.trim().toUpperCase(Locale.ROOT))
+                        || "NECUNOSCUT".equals(status.trim().toUpperCase(Locale.ROOT))) {
+                    return "";
+                }
                 return status.toLowerCase(Locale.ROOT);
         }
     }

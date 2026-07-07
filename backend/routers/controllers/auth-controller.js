@@ -201,7 +201,7 @@ async function sendOTP(req, res) {
         // Trimite codul
         if (phone) { 
             console.log(`Trimitere cod ${code} către telefonul ${phone}`)
-            //await services.smsService.sendOTP_SMS(phone, code); 
+            await services.smsService.sendOTP_SMS(phone, code); 
 
         } else { 
             console.log(`Trimitere cod ${code} către emailul ${email}`)
@@ -877,7 +877,7 @@ async function forgotPin(req, res) {
 
         // Trimite codul pe SMS
         console.log(`[RESET_PIN] Trimitere cod ${code} către telefonul ${user.phone}`);
-        // await services.smsService.sendOTP_SMS(user.phone, code);
+        await services.smsService.sendOTP_SMS(user.phone, code);
 
         // Mascăm numărul de telefon pentru răspuns
         const maskedPhone = user.phone.replace(/(\+40)(\d{2})(\d+)(\d{2})/, '$1$2****$4');

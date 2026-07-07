@@ -228,6 +228,7 @@ public class DashboardActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         if (didInitialResume) {
+            loadProfile();
             requestDashboardRefresh();
         } else {
             didInitialResume = true;
