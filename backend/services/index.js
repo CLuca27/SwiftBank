@@ -13,6 +13,7 @@ import cardPaymentService from './card-payment-service.js'
 import merchantService from './merchant-service.js'
 import aiContextService from './ai-context-service.js'
 import aiService from './ai-service.js'
+import aiLocalAnswerService from './ai-local-answer-service.js'
 
 
 export default {
@@ -30,5 +31,6 @@ export default {
     cardPaymentService,
     merchantService,
     aiContextService,
-    aiService
+    aiService,
+    aiLocalAnswerService
 }

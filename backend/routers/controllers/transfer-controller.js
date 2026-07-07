@@ -48,6 +48,7 @@ async function validateIBAN(req, res) {
         let bankName = null;
         let beneficiaryName = null;
         let accountCurrency = null;
+        let profilePhoto = null;
         let isSameUser = false;
 
         if (isSwiftBank) {
@@ -60,6 +61,7 @@ async function validateIBAN(req, res) {
 
                 if (account.users) {
                     beneficiaryName = `${account.users.first_name} ${account.users.last_name}`;
+                    profilePhoto = account.users.profile_photo || null;
                 }
 
                 // Verifică dacă e contul propriu
@@ -95,6 +97,7 @@ async function validateIBAN(req, res) {
                 bank_name: bankName,
                 beneficiary_name: beneficiaryName,
                 account_currency: accountCurrency,
+                profile_photo: profilePhoto,
                 is_swift_bank: isSwiftBank,
                 is_same_user: isSameUser
             }
@@ -285,6 +288,7 @@ async function getBeneficiaries(req, res) {
                     name: b.name,
                     iban: b.iban,
                     bank_name: b.bank_name,
+                    profile_photo: b.profile_photo || null,
                     created_at: b.created_at
                 }))
             }
@@ -360,9 +364,14 @@ async function createBeneficiary(req, res) {
         // Determină banca
         const bic = services.transferService.extractBIC(normalizedIBAN);
         let bankName = null;
+        let profilePhoto = null;
 
         if (bic === services.transferService.SWIFTBANK_BIC) {
             bankName = 'SwiftBank';
+            const account = await services.transferService.getSwiftBankAccountByIBAN(normalizedIBAN);
+            if (account && account.users) {
+                profilePhoto = account.users.profile_photo || null;
+            }
         } else {
             const bank = await services.transferService.getBankByBIC(bic);
             bankName = bank ? bank.name : 'Bancă necunoscută';
@@ -384,6 +393,7 @@ async function createBeneficiary(req, res) {
                 name: beneficiary.name,
                 iban: beneficiary.iban,
                 bank_name: beneficiary.bank_name,
+                profile_photo: profilePhoto,
                 created_at: beneficiary.created_at
             }
         });

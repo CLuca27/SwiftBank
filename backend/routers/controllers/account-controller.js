@@ -1,6 +1,15 @@
 import services from '../../services/index.js';
 
 const ALLOWED_CURRENCIES = ['EUR', 'USD', 'GBP'];
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function getIdempotencyKey(req) {
+    const headerKey = req.headers['idempotency-key'];
+    const bodyKey = req.body?.idempotency_key;
+    const rawKey = Array.isArray(headerKey) ? headerKey[0] : (headerKey || bodyKey);
+
+    return typeof rawKey === 'string' ? rawKey.trim() : null;
+}
 
 function toAccountResponse(account) {
     const ledgerBalance = parseFloat(account.balance || 0);
@@ -112,10 +121,21 @@ async function exchange(req, res) {
     try {
         const userId = req.user.user_id;
         const { fromAccountId, toAccountId, amount } = req.body;
-        const idempotencyKey = req.headers['idempotency-key'];
+        const idempotencyKey = getIdempotencyKey(req);
 
         // Verifică idempotency key
-        if (idempotencyKey) {
+        if (idempotencyKey) { 
+            console.log(idempotencyKey)
+            if (!UUID_REGEX.test(idempotencyKey)) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'INVALID_IDEMPOTENCY_KEY',
+                        message: 'Idempotency-Key must be a valid UUID'
+                    }
+                });
+            }
+
             const cached = await services.accountService.checkExchangeIdempotency(userId, idempotencyKey);
             if (cached) {
                 return res.status(cached.response_status).json(cached.response_body);
@@ -187,7 +207,8 @@ async function exchange(req, res) {
                     amount: result.toAccount.amount,
                     newBalance: result.toAccount.newBalance
                 },
-                exchangeRate: result.exchangeRate
+                exchangeRate: result.exchangeRate,
+                processedAt: new Date().toISOString()
             }
         };
 

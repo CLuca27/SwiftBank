@@ -59,7 +59,7 @@ async function chat(req, res) {
         }
 
         const history = normalizeHistory(req.body?.history);
-        const financialSummary = await services.aiContextService.buildFinancialSummary(userId);
+const financialSummary = await services.aiContextService.buildFinancialSummary(userId, message);
         const answer = await services.aiService.sendChatMessage({
             message,
             history,
@@ -90,7 +90,7 @@ async function chat(req, res) {
             success: false,
             error: {
                 code: 'SWIFT_AI_ERROR',
-                message: 'Nu am putut genera raspunsul Swift AI'
+                message: 'Nu am putut genera r\u0103spunsul Swift AI'
             }
         });
     }

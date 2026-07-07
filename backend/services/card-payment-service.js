@@ -845,7 +845,6 @@ async function processSettlements() {
                 .from('card_transactions')
                 .update({
                     status: 'COMPLETED',
-                    completed_at: new Date().toISOString()
                 })
                 .eq('transaction_id', tx.transaction_id);
 

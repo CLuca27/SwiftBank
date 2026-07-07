@@ -4,8 +4,9 @@ async function getStatistics(req, res) {
     try {
         const userId = req.user.user_id;
         const period = req.query.period || 'this_month';
+        const granularity = req.query.granularity || null;
 
-        const statistics = await statisticsService.getStatistics(userId, period);
+        const statistics = await statisticsService.getStatistics(userId, period, granularity);
 
         res.json({
             success: true,
