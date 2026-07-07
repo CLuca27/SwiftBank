@@ -6,7 +6,7 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingVertical="8dp">
+    android:paddingVertical="9dp">
 
     <View
         android:id="@+id/colorDot"
@@ -15,32 +15,58 @@
         android:background="@drawable/bg_dot"
         tools:backgroundTint="@color/green_accent" />
 
-    <TextView
-        android:id="@+id/tvCategoryName"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginStart="12dp"
-        android:textColor="@color/white"
-        android:textSize="14sp"
-        tools:text="Cumpărături" />
+        android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/tvCategoryAmount"
+        <TextView
+            android:id="@+id/tvCategoryName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="Cumparaturi" />
+
+        <TextView
+            android:id="@+id/tvCategoryCaption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/white_60"
+            android:textSize="12sp"
+            tools:text="13 tranzactii" />
+
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="@color/white"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        tools:text="1.250,00 lei" />
+        android:orientation="vertical"
+        android:gravity="end">
 
-    <TextView
-        android:id="@+id/tvCategoryPercentage"
-        android:layout_width="48dp"
-        android:layout_height="wrap_content"
-        android:gravity="end"
-        android:textColor="@color/white_60"
-        android:textSize="12sp"
-        tools:text="35%" />
+        <TextView
+            android:id="@+id/tvCategoryAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="1.250,00 lei" />
+
+        <TextView
+            android:id="@+id/tvCategoryPercentage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="end"
+            android:textColor="@color/white_60"
+            android:textSize="12sp"
+            tools:text="35%" />
+
+    </LinearLayout>
 
 </LinearLayout>

@@ -1,10 +1,17 @@
 package com.example.swiftbank.activities.transactions;
 
+import android.app.DatePickerDialog;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Typeface;
+import android.graphics.pdf.PdfDocument;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -22,6 +29,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -40,15 +48,21 @@ import com.example.swiftbank.api.dto.response.data.success.transaction.TransferT
 import com.example.swiftbank.managers.RealtimeManager;
 import com.example.swiftbank.utils.ExchangeTitleFormatter;
 import com.example.swiftbank.utils.RemoteImageLoader;
+import com.example.swiftbank.utils.SwiftBankDialog;
 import com.google.gson.JsonObject;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -61,25 +75,39 @@ public class TransactionsActivity extends AppCompatActivity {
 
     public static final String EXTRA_ACCOUNT_ID = "account_id";
     public static final String EXTRA_ACCOUNT_CURRENCY = "account_currency";
+    public static final String EXTRA_SCREEN_TITLE = "screen_title";
+    public static final String EXTRA_FILTER_CATEGORY = "filter_category";
+    public static final String EXTRA_FILTER_MERCHANT = "filter_merchant";
+    public static final String EXTRA_START_DATE = "start_date";
+    public static final String EXTRA_END_DATE = "end_date";
+    public static final String EXTRA_ALL_ACCOUNTS = "all_accounts";
     private static final int REQUEST_CARD_PAYMENT_APPROVAL = 2401;
     private static final String ACTION_REFRESH_DATA = "com.example.swiftbank.REFRESH_DATA";
     private static final long DATA_REFRESH_DEBOUNCE_MS = 350L;
+    private static final int STATEMENT_PAGE_SIZE = 100;
 
-    private ImageView btnBack, ivAccountFlag;
+    private ImageView btnBack, btnStatement, ivAccountFlag;
     private EditText etSearch;
-    private TextView tvAccountName;
+    private TextView tvAccountName, tvTitle, btnStartDate, btnEndDate, btnClearPeriod;
     private RecyclerView rvTransactions;
-    private LinearLayout loadingState, emptyState;
+    private LinearLayout loadingState, emptyState, layoutAccount, dateFilterContainer;
 
     private TransactionsAdapter adapter;
     private List<Object> allTransactionItems = new ArrayList<>();
     private List<Object> filteredTransactionItems = new ArrayList<>();
     private List<Transaction> allTransactions = new ArrayList<>();
+    private List<AccountData> accounts = new ArrayList<>();
 
     private int accountId = -1;
     private String accountCurrency = "RON";
+    private String screenTitle;
+    private String fixedCategoryFilter;
+    private String fixedMerchantFilter;
+    private String filterStartDate;
+    private String filterEndDate;
     private int currentUserId = -1;
     private boolean refreshReceiverRegistered = false;
+    private boolean allAccountsMode = false;
 
     // Pagination
     private static final int PAGE_SIZE = 20;
@@ -101,7 +129,7 @@ public class TransactionsActivity extends AppCompatActivity {
     private final BroadcastReceiver refreshReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (accountId != -1) {
+            if (allAccountsMode || accountId != -1) {
                 requestTransactionsRefresh();
             }
         }
@@ -115,6 +143,12 @@ public class TransactionsActivity extends AppCompatActivity {
         accountId = getIntent().getIntExtra(EXTRA_ACCOUNT_ID, -1);
         accountCurrency = getIntent().getStringExtra(EXTRA_ACCOUNT_CURRENCY);
         if (accountCurrency == null) accountCurrency = "RON";
+        screenTitle = getIntent().getStringExtra(EXTRA_SCREEN_TITLE);
+        fixedCategoryFilter = getIntent().getStringExtra(EXTRA_FILTER_CATEGORY);
+        fixedMerchantFilter = getIntent().getStringExtra(EXTRA_FILTER_MERCHANT);
+        filterStartDate = getIntent().getStringExtra(EXTRA_START_DATE);
+        filterEndDate = getIntent().getStringExtra(EXTRA_END_DATE);
+        allAccountsMode = getIntent().getBooleanExtra(EXTRA_ALL_ACCOUNTS, false);
 
         initViews();
         setupListeners();
@@ -131,9 +165,16 @@ public class TransactionsActivity extends AppCompatActivity {
 
     private void initViews() {
         btnBack = findViewById(R.id.btnBack);
+        btnStatement = findViewById(R.id.btnStatement);
         etSearch = findViewById(R.id.etSearch);
         ivAccountFlag = findViewById(R.id.ivAccountFlag);
         tvAccountName = findViewById(R.id.tvAccountName);
+        tvTitle = findViewById(R.id.tvTitle);
+        layoutAccount = findViewById(R.id.layoutAccount);
+        dateFilterContainer = findViewById(R.id.dateFilterContainer);
+        btnStartDate = findViewById(R.id.btnStartDate);
+        btnEndDate = findViewById(R.id.btnEndDate);
+        btnClearPeriod = findViewById(R.id.btnClearPeriod);
         rvTransactions = findViewById(R.id.rvTransactions);
         loadingState = findViewById(R.id.loadingState);
         emptyState = findViewById(R.id.emptyState);
@@ -142,8 +183,31 @@ public class TransactionsActivity extends AppCompatActivity {
     }
 
     private void updateAccountDisplay() {
-        tvAccountName.setText(accountCurrency);
-        ivAccountFlag.setImageResource(getFlagResource(accountCurrency));
+        if (tvTitle != null && screenTitle != null && !screenTitle.trim().isEmpty()) {
+            tvTitle.setText(screenTitle);
+        }
+
+        if (allAccountsMode) {
+            tvAccountName.setText("Toate");
+            ivAccountFlag.setImageResource(R.drawable.ic_filter);
+        } else {
+            tvAccountName.setText(accountCurrency);
+            ivAccountFlag.setImageResource(getFlagResource(accountCurrency));
+        }
+
+        updateDateFilterDisplay();
+        updateSearchHint();
+    }
+
+    private void updateSearchHint() {
+        if (etSearch == null) return;
+        etSearch.setHint(hasFixedCategoryFilter()
+                ? "Caut\u0103 nume sau sum\u0103"
+                : "Caut\u0103 nume, sum\u0103 sau categorie");
+    }
+
+    private boolean hasFixedCategoryFilter() {
+        return fixedCategoryFilter != null && !fixedCategoryFilter.trim().isEmpty();
     }
 
     private int getFlagResource(String currency) {
@@ -160,6 +224,28 @@ public class TransactionsActivity extends AppCompatActivity {
     private void setupListeners() {
         btnBack.setOnClickListener(v -> finish());
 
+        if (btnStatement != null) {
+            btnStatement.setOnClickListener(v -> showStatementConfirmDialog());
+        }
+
+        if (layoutAccount != null) {
+            layoutAccount.setOnClickListener(v -> showAccountPicker());
+        }
+        if (btnStartDate != null) {
+            btnStartDate.setOnClickListener(v -> showDatePicker(true));
+        }
+        if (btnEndDate != null) {
+            btnEndDate.setOnClickListener(v -> showDatePicker(false));
+        }
+        if (btnClearPeriod != null) {
+            btnClearPeriod.setOnClickListener(v -> {
+                filterStartDate = null;
+                filterEndDate = null;
+                updateDateFilterDisplay();
+                requestTransactionsRefresh();
+            });
+        }
+
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -172,6 +258,185 @@ public class TransactionsActivity extends AppCompatActivity {
             @Override
             public void afterTextChanged(Editable s) {}
         });
+    }
+
+    private void showDatePicker(boolean startDate) {
+        Calendar calendar = Calendar.getInstance();
+        String current = startDate ? filterStartDate : filterEndDate;
+        Date parsed = parseTransactionDate(current);
+        if (current != null && parsed.getTime() > 0) {
+            calendar.setTime(parsed);
+        }
+
+        DatePickerDialog picker = new DatePickerDialog(
+                this,
+                (view, year, month, dayOfMonth) -> {
+                    String iso = String.format(Locale.ROOT,
+                            startDate ? "%04d-%02d-%02dT00:00:00.000Z" : "%04d-%02d-%02dT23:59:59.999Z",
+                            year,
+                            month + 1,
+                            dayOfMonth);
+                    if (startDate) {
+                        filterStartDate = iso;
+                    } else {
+                        filterEndDate = iso;
+                    }
+                    updateDateFilterDisplay();
+                    requestTransactionsRefresh();
+                },
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+        );
+        picker.show();
+    }
+
+    private void updateDateFilterDisplay() {
+        if (btnStartDate != null) {
+            btnStartDate.setText(filterStartDate == null ? "De la" : formatDateChip(filterStartDate));
+        }
+        if (btnEndDate != null) {
+            btnEndDate.setText(filterEndDate == null ? "P\u00E2n\u0103 la" : formatDateChip(filterEndDate));
+        }
+    }
+
+    private String formatDateChip(String isoDate) {
+        if (isoDate == null || isoDate.length() < 10) return "";
+        String[] parts = isoDate.substring(0, 10).split("-");
+        if (parts.length != 3) return isoDate.substring(0, Math.min(10, isoDate.length()));
+        return parts[2] + "." + parts[1] + "." + parts[0];
+    }
+
+    private void showAccountPicker() {
+        if (accounts.isEmpty()) {
+            ApiClient.getAccountService().getAccounts().enqueue(new Callback<ApiResponse<AccountsData>>() {
+                @Override
+                public void onResponse(Call<ApiResponse<AccountsData>> call, Response<ApiResponse<AccountsData>> response) {
+                    if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                        accounts.clear();
+                        accounts.addAll(response.body().getData().getAccounts());
+                        showAccountPicker();
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<ApiResponse<AccountsData>> call, Throwable t) {
+                    Toast.makeText(TransactionsActivity.this, "Nu am putut \u00EEnc\u0103rca lista de conturi", Toast.LENGTH_SHORT).show();
+                }
+            });
+            return;
+        }
+
+        SwiftBankDialog dialog = new SwiftBankDialog(this)
+                .hideIcon()
+                .setTitle("Alege contul")
+                .setPrimaryButton("\u00CEnchide", null)
+                .setCancelable(true);
+
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+        scrollView.setFillViewport(false);
+        scrollView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+
+        LinearLayout optionsContainer = new LinearLayout(this);
+        optionsContainer.setOrientation(LinearLayout.VERTICAL);
+        scrollView.addView(optionsContainer, new android.widget.ScrollView.LayoutParams(
+                android.widget.ScrollView.LayoutParams.MATCH_PARENT,
+                android.widget.ScrollView.LayoutParams.WRAP_CONTENT
+        ));
+
+        optionsContainer.addView(createAccountPickerItem(null, dialog));
+        for (AccountData account : accounts) {
+            optionsContainer.addView(createAccountPickerItem(account, dialog));
+        }
+
+        dialog.setCustomView(scrollView);
+        dialog.show();
+    }
+
+    private View createAccountPickerItem(AccountData account, SwiftBankDialog dialog) {
+        View item = LayoutInflater.from(this).inflate(R.layout.item_account_bottom_sheet, null, false);
+        LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        itemParams.setMargins(0, dpToPx(5), 0, dpToPx(5));
+        item.setLayoutParams(itemParams);
+        ImageView ivFlag = item.findViewById(R.id.ivFlag);
+        ImageView ivSelected = item.findViewById(R.id.ivSelected);
+        LinearLayout balanceContainer = item.findViewById(R.id.balanceContainer);
+        TextView tvAccountName = item.findViewById(R.id.tvAccountName);
+        TextView tvAccountSubtitle = item.findViewById(R.id.tvAccountSubtitle);
+        TextView tvBalance = item.findViewById(R.id.tvBalance);
+        TextView tvCurrency = item.findViewById(R.id.tvCurrency);
+
+        boolean isAllOption = account == null;
+        if (isAllOption) {
+            ivFlag.setImageResource(R.drawable.ic_filter);
+            androidx.core.widget.ImageViewCompat.setImageTintList(
+                    ivFlag,
+                    android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.green_accent)));
+            tvAccountName.setText("Toate conturile");
+            tvAccountSubtitle.setText("Include toate valutele");
+            tvAccountSubtitle.setVisibility(View.VISIBLE);
+            tvBalance.setVisibility(View.GONE);
+            tvCurrency.setVisibility(View.GONE);
+            balanceContainer.setVisibility(View.VISIBLE);
+            item.setSelected(allAccountsMode);
+            ivSelected.setVisibility(allAccountsMode ? View.VISIBLE : View.GONE);
+        } else {
+            tvAccountSubtitle.setText("Sold disponibil: " + formatBalance(account.getBalance()) + " " + getCurrencySymbol(account.getCurrency()));
+            tvAccountSubtitle.setVisibility(View.VISIBLE);
+            tvBalance.setVisibility(View.GONE);
+            tvCurrency.setVisibility(View.GONE);
+            balanceContainer.setVisibility(View.VISIBLE);
+            androidx.core.widget.ImageViewCompat.setImageTintList(ivFlag, null);
+            ivFlag.clearColorFilter();
+            ivFlag.setImageResource(getFlagResource(account.getCurrency()));
+            tvAccountName.setText("Personal - " + account.getCurrency());
+
+            boolean selected = !allAccountsMode && account.getAccountId() == accountId;
+            item.setSelected(selected);
+            ivSelected.setVisibility(selected ? View.VISIBLE : View.GONE);
+        }
+
+        item.setOnClickListener(v -> {
+            if (isAllOption) {
+                allAccountsMode = true;
+                accountId = -1;
+                accountCurrency = "MULTI";
+            } else {
+                allAccountsMode = false;
+                accountId = account.getAccountId();
+                accountCurrency = account.getCurrency();
+            }
+
+            updateAccountDisplay();
+            loadTransactions();
+            dialog.dismiss();
+        });
+
+        return item;
+    }
+
+    private Date parseTransactionDate(String value) {
+        if (value == null) return new Date(0);
+        try {
+            String cleanValue = value;
+            if (cleanValue.endsWith("Z")) {
+                cleanValue = cleanValue.substring(0, cleanValue.length() - 1);
+            }
+            int dotIndex = cleanValue.indexOf('.');
+            if (dotIndex >= 0) {
+                cleanValue = cleanValue.substring(0, dotIndex);
+            }
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
+            sdf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            Date parsed = sdf.parse(cleanValue);
+            return parsed != null ? parsed : new Date(0);
+        } catch (Exception ignored) {
+            return new Date(0);
+        }
     }
 
     private void setupRecyclerView() {
@@ -254,7 +519,9 @@ public class TransactionsActivity extends AppCompatActivity {
     }
 
     private void refreshTransactionsNow() {
-        if (accountId == -1) {
+        if (allAccountsMode) {
+            loadTransactions();
+        } else if (accountId == -1) {
             loadDefaultAccount();
         } else {
             loadTransactions();
@@ -267,10 +534,16 @@ public class TransactionsActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<ApiResponse<AccountsData>> call, Response<ApiResponse<AccountsData>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
-                    List<AccountData> accounts = response.body().getData().getAccounts();
+                    accounts.clear();
+                    accounts.addAll(response.body().getData().getAccounts());
                     if (!accounts.isEmpty()) {
-                        accountId = accounts.get(0).getAccountId();
-                        accountCurrency = accounts.get(0).getCurrency();
+                        if (allAccountsMode) {
+                            accountId = -1;
+                            accountCurrency = "MULTI";
+                        } else {
+                            accountId = accounts.get(0).getAccountId();
+                            accountCurrency = accounts.get(0).getCurrency();
+                        }
                         updateAccountDisplay();
                         loadTransactions();
                     } else {
@@ -289,13 +562,145 @@ public class TransactionsActivity extends AppCompatActivity {
         });
     }
 
+    private void loadTransactionsForAllAccounts() {
+        if (accounts.isEmpty()) {
+            loadDefaultAccount();
+            return;
+        }
+
+        currentOffset = 0;
+        hasMore = false;
+        allTransactions.clear();
+        allTransactionItems.clear();
+        filteredTransactionItems.clear();
+
+        transactionsRequestInFlight = true;
+        showLoading();
+
+        List<Transaction> merged = new ArrayList<>();
+        final int[] pending = {accounts.size()};
+
+        for (AccountData account : accounts) {
+            ApiClient.getTransactionService()
+                    .getTransactionsFiltered(account.getAccountId(), 100, 0, filterStartDate, filterEndDate)
+                    .enqueue(new Callback<ApiResponse<TransactionsData>>() {
+                        @Override
+                        public void onResponse(Call<ApiResponse<TransactionsData>> call,
+                                               Response<ApiResponse<TransactionsData>> response) {
+                            if (response.isSuccessful()
+                                    && response.body() != null
+                                    && response.body().getData() != null
+                                    && response.body().getData().getTransactions() != null) {
+                                merged.addAll(response.body().getData().getTransactions());
+                            }
+                            finishAllAccountsRequest(merged, pending);
+                        }
+
+                        @Override
+                        public void onFailure(Call<ApiResponse<TransactionsData>> call, Throwable t) {
+                            finishAllAccountsRequest(merged, pending);
+                        }
+                    });
+        }
+    }
+
+    private void finishAllAccountsRequest(List<Transaction> merged, int[] pending) {
+        pending[0]--;
+        if (pending[0] > 0) return;
+
+        List<Transaction> visibleMerged = deduplicateOwnAccountTransfers(merged);
+        Collections.sort(visibleMerged, (a, b) -> parseTransactionDate(b.getCreatedAt()).compareTo(parseTransactionDate(a.getCreatedAt())));
+        currentOffset = visibleMerged.size();
+        processTransactions(visibleMerged);
+        finishTransactionsRequest();
+    }
+
+    private List<Transaction> deduplicateOwnAccountTransfers(List<Transaction> transactions) {
+        List<Transaction> regularTransactions = new ArrayList<>();
+        Map<String, Transaction> ownTransfersByKey = new LinkedHashMap<>();
+
+        if (transactions == null) {
+            return regularTransactions;
+        }
+
+        for (Transaction transaction : transactions) {
+            if (!isOwnAccountTransfer(transaction)) {
+                regularTransactions.add(transaction);
+                continue;
+            }
+
+            String key = buildOwnAccountTransferKey(transaction);
+            Transaction existing = ownTransfersByKey.get(key);
+            if (existing == null || shouldPreferOwnAccountTransfer(transaction, existing)) {
+                ownTransfersByKey.put(key, transaction);
+            }
+        }
+
+        regularTransactions.addAll(ownTransfersByKey.values());
+        return regularTransactions;
+    }
+
+    private boolean isOwnAccountTransfer(Transaction transaction) {
+        String type = transaction.getTransactionType();
+        return "SELF_IN".equals(type) || "SELF_OUT".equals(type);
+    }
+
+    private boolean shouldPreferOwnAccountTransfer(Transaction candidate, Transaction existing) {
+        String candidateType = candidate.getTransactionType();
+        String existingType = existing.getTransactionType();
+
+        if ("SELF_OUT".equals(candidateType) && !"SELF_OUT".equals(existingType)) {
+            return true;
+        }
+        if ("SELF_OUT".equals(existingType) && !"SELF_OUT".equals(candidateType)) {
+            return false;
+        }
+
+        return Math.abs(candidate.getAmount()) >= Math.abs(existing.getAmount());
+    }
+
+    private String buildOwnAccountTransferKey(Transaction transaction) {
+        String reference = transaction.getReference();
+        if (reference != null && !reference.trim().isEmpty()) {
+            return "reference:" + reference.trim();
+        }
+
+        List<String> amountParts = new ArrayList<>();
+        amountParts.add(formatAmountKey(Math.abs(transaction.getAmount())) + ":" + safeValue(transaction.getCurrency()));
+
+        if (transaction instanceof TransferTransaction) {
+            TransferTransaction transfer = (TransferTransaction) transaction;
+            if (transfer.getOriginalAmount() != null) {
+                amountParts.add(formatAmountKey(Math.abs(transfer.getOriginalAmount())) + ":" + safeValue(transfer.getOriginalCurrency()));
+            }
+        }
+
+        Collections.sort(amountParts);
+        return "own-transfer:" + normalizeTransactionTimeKey(transaction.getCreatedAt()) + ":" + String.join("|", amountParts);
+    }
+
+    private String normalizeTransactionTimeKey(String createdAt) {
+        if (createdAt == null) {
+            return "";
+        }
+        return createdAt.length() >= 16 ? createdAt.substring(0, 16) : createdAt;
+    }
+
+    private String formatAmountKey(double amount) {
+        return String.format(Locale.US, "%.2f", amount);
+    }
+
     private void loadTransactions() {
         if (transactionsRequestInFlight) {
             queuedTransactionsRefresh = true;
             return;
         }
 
-        // Reset pagination
+        if (allAccountsMode) {
+            loadTransactionsForAllAccounts();
+            return;
+        }
+
         currentOffset = 0;
         hasMore = true;
         allTransactions.clear();
@@ -304,45 +709,45 @@ public class TransactionsActivity extends AppCompatActivity {
         transactionsRequestInFlight = true;
         showLoading();
 
-        transactionsCall = ApiClient.getTransactionService().getTransactions(accountId, PAGE_SIZE, 0);
-        transactionsCall
-                .enqueue(new Callback<ApiResponse<TransactionsData>>() {
-                    @Override
-                    public void onResponse(Call<ApiResponse<TransactionsData>> call, Response<ApiResponse<TransactionsData>> response) {
-                        if (call.isCanceled()) {
-                            finishTransactionsRequest();
-                            return;
-                        }
+        transactionsCall = ApiClient.getTransactionService()
+                .getTransactionsFiltered(accountId, PAGE_SIZE, 0, filterStartDate, filterEndDate);
+        transactionsCall.enqueue(new Callback<ApiResponse<TransactionsData>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<TransactionsData>> call, Response<ApiResponse<TransactionsData>> response) {
+                if (call.isCanceled()) {
+                    finishTransactionsRequest();
+                    return;
+                }
 
-                        if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
-                            TransactionsData data = response.body().getData();
-                            List<Transaction> transactions = data.getTransactions();
+                if (response.isSuccessful() && response.body() != null && response.body().getData() != null) {
+                    TransactionsData data = response.body().getData();
+                    List<Transaction> transactions = data.getTransactions();
 
-                            if (data.getPagination() != null) {
-                                hasMore = data.getPagination().hasMore();
-                            } else {
-                                hasMore = transactions.size() >= PAGE_SIZE;
-                            }
-                            currentOffset = transactions.size();
-
-                            processTransactions(transactions);
-                        } else {
-                            showEmpty();
-                        }
-                        finishTransactionsRequest();
+                    if (data.getPagination() != null) {
+                        hasMore = data.getPagination().hasMore();
+                    } else {
+                        hasMore = transactions != null && transactions.size() >= PAGE_SIZE;
                     }
+                    currentOffset = transactions != null ? transactions.size() : 0;
 
-                    @Override
-                    public void onFailure(Call<ApiResponse<TransactionsData>> call, Throwable t) {
-                        if (call.isCanceled()) {
-                            finishTransactionsRequest();
-                            return;
-                        }
-                        showEmpty();
-                        Toast.makeText(TransactionsActivity.this, "Eroare de conexiune", Toast.LENGTH_SHORT).show();
-                        finishTransactionsRequest();
-                    }
-                });
+                    processTransactions(transactions);
+                } else {
+                    showEmpty();
+                }
+                finishTransactionsRequest();
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<TransactionsData>> call, Throwable t) {
+                if (call.isCanceled()) {
+                    finishTransactionsRequest();
+                    return;
+                }
+                showEmpty();
+                Toast.makeText(TransactionsActivity.this, "Eroare de conexiune", Toast.LENGTH_SHORT).show();
+                finishTransactionsRequest();
+            }
+        });
     }
 
     private void loadMoreTransactions() {
@@ -354,7 +759,7 @@ public class TransactionsActivity extends AppCompatActivity {
         filteredTransactionItems.add(new LoadingSkeleton());
         adapter.notifyItemInserted(filteredTransactionItems.size() - 1);
 
-        ApiClient.getTransactionService().getTransactions(accountId, PAGE_SIZE, currentOffset)
+        ApiClient.getTransactionService().getTransactionsFiltered(accountId, PAGE_SIZE, currentOffset, filterStartDate, filterEndDate)
                 .enqueue(new Callback<ApiResponse<TransactionsData>>() {
                     @Override
                     public void onResponse(Call<ApiResponse<TransactionsData>> call, Response<ApiResponse<TransactionsData>> response) {
@@ -405,8 +810,10 @@ public class TransactionsActivity extends AppCompatActivity {
     }
 
     private void processTransactions(List<Transaction> transactions) {
+        List<Transaction> visibleTransactions = applyFixedFilters(transactions);
+
         allTransactions.clear();
-        allTransactions.addAll(transactions);
+        allTransactions.addAll(visibleTransactions);
 
         allTransactionItems.clear();
 
@@ -414,7 +821,7 @@ public class TransactionsActivity extends AppCompatActivity {
         Map<String, Double> dailyTotals = new HashMap<>();
         List<String> dateOrder = new ArrayList<>();
 
-        for (Transaction t : transactions) {
+        for (Transaction t : visibleTransactions) {
             String dateGroup = getDateGroup(t.getCreatedAt());
 
             if (!groupedByDate.containsKey(dateGroup)) {
@@ -428,7 +835,7 @@ public class TransactionsActivity extends AppCompatActivity {
         }
 
         for (String dateGroup : dateOrder) {
-            allTransactionItems.add(new DateHeader(dateGroup, dailyTotals.get(dateGroup), accountCurrency));
+            allTransactionItems.add(new DateHeader(dateGroup, dailyTotals.get(dateGroup), getHeaderCurrency()));
 
             for (Transaction t : groupedByDate.get(dateGroup)) {
                 allTransactionItems.add(createTransactionItem(t));
@@ -447,6 +854,7 @@ public class TransactionsActivity extends AppCompatActivity {
     }
 
     private void appendTransactions(List<Transaction> newTransactions) {
+        newTransactions = applyFixedFilters(newTransactions);
         if (newTransactions.isEmpty()) return;
 
         allTransactions.addAll(newTransactions);
@@ -454,7 +862,6 @@ public class TransactionsActivity extends AppCompatActivity {
         int insertPosition = filteredTransactionItems.size();
         String lastDateGroup = null;
 
-        // Find the last date header
         for (int i = filteredTransactionItems.size() - 1; i >= 0; i--) {
             Object item = filteredTransactionItems.get(i);
             if (item instanceof DateHeader) {
@@ -483,9 +890,7 @@ public class TransactionsActivity extends AppCompatActivity {
         List<Object> newItems = new ArrayList<>();
 
         for (String dateGroup : dateOrder) {
-            // If same date group as last, merge transactions without adding new header
             if (dateGroup.equals(lastDateGroup)) {
-                // Update the existing header's total
                 for (int i = filteredTransactionItems.size() - 1; i >= 0; i--) {
                     Object item = filteredTransactionItems.get(i);
                     if (item instanceof DateHeader && ((DateHeader) item).date.equals(dateGroup)) {
@@ -496,8 +901,9 @@ public class TransactionsActivity extends AppCompatActivity {
                     }
                 }
             } else {
-                newItems.add(new DateHeader(dateGroup, dailyTotals.get(dateGroup), accountCurrency));
-                allTransactionItems.add(new DateHeader(dateGroup, dailyTotals.get(dateGroup), accountCurrency));
+                DateHeader header = new DateHeader(dateGroup, dailyTotals.get(dateGroup), getHeaderCurrency());
+                newItems.add(header);
+                allTransactionItems.add(header);
             }
 
             for (Transaction t : groupedByDate.get(dateGroup)) {
@@ -511,41 +917,43 @@ public class TransactionsActivity extends AppCompatActivity {
 
         filteredTransactionItems.addAll(newItems);
         adapter.notifyItemRangeInserted(insertPosition, newItems.size());
+
+        String currentQuery = etSearch != null ? etSearch.getText().toString() : "";
+        if (currentQuery != null && !currentQuery.trim().isEmpty()) {
+            filterTransactions(currentQuery);
+        }
     }
 
     private void filterTransactions(String query) {
         filteredTransactionItems.clear();
 
-        if (query.isEmpty()) {
+        String lowerQuery = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        if (lowerQuery.isEmpty()) {
             filteredTransactionItems.addAll(allTransactionItems);
         } else {
-            String lowerQuery = query.toLowerCase();
-
             Map<String, List<TransactionItem>> groupedByDate = new HashMap<>();
             Map<String, Double> dailyTotals = new HashMap<>();
             List<String> dateOrder = new ArrayList<>();
 
             for (Transaction t : allTransactions) {
-                String title = t.getTitle() != null ? t.getTitle().toLowerCase() : "";
-                String subtitle = t.getSubtitle() != null ? t.getSubtitle().toLowerCase() : "";
-                String amount = formatBalance(Math.abs(t.getAmount()));
-
-                if (title.contains(lowerQuery) || subtitle.contains(lowerQuery) || amount.contains(query)) {
-                    String dateGroup = getDateGroup(t.getCreatedAt());
-
-                    if (!groupedByDate.containsKey(dateGroup)) {
-                        groupedByDate.put(dateGroup, new ArrayList<>());
-                        dailyTotals.put(dateGroup, 0.0);
-                        dateOrder.add(dateGroup);
-                    }
-
-                    groupedByDate.get(dateGroup).add(createTransactionItem(t));
-                    dailyTotals.put(dateGroup, dailyTotals.get(dateGroup) + t.getAmount());
+                if (!buildSearchText(t).contains(lowerQuery)) {
+                    continue;
                 }
+
+                String dateGroup = getDateGroup(t.getCreatedAt());
+
+                if (!groupedByDate.containsKey(dateGroup)) {
+                    groupedByDate.put(dateGroup, new ArrayList<>());
+                    dailyTotals.put(dateGroup, 0.0);
+                    dateOrder.add(dateGroup);
+                }
+
+                groupedByDate.get(dateGroup).add(createTransactionItem(t));
+                dailyTotals.put(dateGroup, dailyTotals.get(dateGroup) + t.getAmount());
             }
 
             for (String dateGroup : dateOrder) {
-                filteredTransactionItems.add(new DateHeader(dateGroup, dailyTotals.get(dateGroup), accountCurrency));
+                filteredTransactionItems.add(new DateHeader(dateGroup, dailyTotals.get(dateGroup), getHeaderCurrency()));
                 filteredTransactionItems.addAll(groupedByDate.get(dateGroup));
             }
         }
@@ -559,6 +967,122 @@ public class TransactionsActivity extends AppCompatActivity {
             emptyState.setVisibility(View.GONE);
             rvTransactions.setVisibility(View.VISIBLE);
         }
+    }
+
+    private List<Transaction> applyFixedFilters(List<Transaction> source) {
+        List<Transaction> result = new ArrayList<>();
+        if (source == null) return result;
+
+        for (Transaction transaction : source) {
+            if (matchesFixedFilters(transaction)) {
+                result.add(transaction);
+            }
+        }
+
+        return result;
+    }
+
+    private boolean matchesFixedFilters(Transaction transaction) {
+        if (fixedCategoryFilter != null && !fixedCategoryFilter.trim().isEmpty()) {
+            String wanted = normalizeFilterValue(fixedCategoryFilter);
+            if ("transfers".equals(wanted) || "transferuri".equals(wanted)) {
+                String type = transaction.getTransactionType();
+                if (type == null || !type.startsWith("TRANSFER") || transaction.getAmount() >= 0) {
+                    return false;
+                }
+            } else if (!normalizeFilterValue(getTransactionCategory(transaction)).equals(wanted)) {
+                return false;
+            }
+        }
+
+        if (fixedMerchantFilter != null && !fixedMerchantFilter.trim().isEmpty()) {
+            String wanted = normalizeFilterValue(fixedMerchantFilter);
+            if (!normalizeFilterValue(getTransactionMerchant(transaction)).equals(wanted)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private String buildSearchText(Transaction transaction) {
+        StringBuilder searchText = new StringBuilder();
+        searchText.append(safeLower(transaction.getTitle())).append(" ")
+                .append(safeLower(transaction.getDescription())).append(" ")
+                .append(safeLower(transaction.getReference())).append(" ")
+                .append(safeLower(transaction.getCurrency())).append(" ")
+                .append(safeLower(getTransactionMerchant(transaction))).append(" ")
+                .append(formatBalance(Math.abs(transaction.getAmount()))).append(" ")
+                .append(Math.abs(transaction.getAmount()));
+
+        if (!hasFixedCategoryFilter()) {
+            searchText.append(" ")
+                    .append(safeLower(transaction.getSubtitle())).append(" ")
+                    .append(safeLower(getTransactionCategory(transaction))).append(" ")
+                    .append(safeLower(getCategoryDisplayNameForTransaction(transaction)));
+        }
+
+        return searchText.toString().toLowerCase(Locale.ROOT);
+    }
+
+    private String getTransactionCategory(Transaction transaction) {
+        if (transaction instanceof BillTransaction) {
+            return ((BillTransaction) transaction).getBillerCategory();
+        }
+
+        if (transaction instanceof TransferTransaction) {
+            return "transfers";
+        }
+
+        String category = transaction.getCategoryName();
+        if (category != null && !category.trim().isEmpty()) {
+            return category;
+        }
+
+        String categoryIcon = transaction.getCategoryIcon();
+        if (categoryIcon != null && !categoryIcon.trim().isEmpty()) {
+            String normalizedIcon = categoryIcon.trim().toLowerCase(Locale.ROOT);
+            if (normalizedIcon.startsWith("ic_category_")) {
+                return normalizedIcon.substring("ic_category_".length());
+            }
+            return normalizedIcon;
+        }
+
+        String type = transaction.getTransactionType();
+        if ("CARD".equals(type) || "CARD_PENDING_APPROVAL".equals(type)) {
+            return "other";
+        }
+
+        String subtitle = transaction.getSubtitle();
+        return subtitle != null && !subtitle.trim().isEmpty() ? subtitle : "other";
+    }
+
+    private String getTransactionMerchant(Transaction transaction) {
+        if (transaction instanceof CardTransaction) {
+            String merchant = ((CardTransaction) transaction).getMerchantName();
+            return merchant != null && !merchant.isEmpty() ? merchant : transaction.getTitle();
+        }
+        if (transaction instanceof BillTransaction) {
+            return ((BillTransaction) transaction).getBillerName();
+        }
+        if (transaction instanceof TransferTransaction) {
+            String beneficiary = ((TransferTransaction) transaction).getBeneficiaryName();
+            return beneficiary != null && !beneficiary.isEmpty() ? beneficiary : transaction.getTitle();
+        }
+
+        return transaction.getTitle();
+    }
+
+    private String normalizeFilterValue(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replace('_', ' ');
+    }
+
+    private String safeLower(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT);
+    }
+
+    private String getHeaderCurrency() {
+        return allAccountsMode ? "MULTI" : accountCurrency;
     }
 
     private TransactionItem createTransactionItem(Transaction t) {
@@ -661,6 +1185,696 @@ public class TransactionsActivity extends AppCompatActivity {
         if (requestCode == REQUEST_CARD_PAYMENT_APPROVAL && resultCode == RESULT_OK) {
             requestTransactionsRefresh();
         }
+    }
+
+    private interface StatementTransactionsCallback {
+        void onSuccess(List<Transaction> transactions);
+        void onError();
+    }
+
+    private void showStatementConfirmDialog() {
+        new SwiftBankDialog(this)
+                .setIcon(R.drawable.ic_document)
+                .setTitle("Extras de cont")
+                .setMessage("Vei genera un extras PDF pentru " + getStatementAccountSentenceLabel()
+                        + ". Documentul respectă perioada, filtrele și căutarea aplicate în acest ecran.")
+                .setPrimaryButton("Generează", v -> generateAccountStatement())
+                .setSecondaryButton("Anulează", null)
+                .setCancelable(true)
+                .show();
+    }
+
+    private void generateAccountStatement() {
+        if (!allAccountsMode && accountId == -1) {
+            showStatementInfo("Alege un cont", "Selectează mai întâi contul pentru care vrei să generezi extrasul.");
+            return;
+        }
+
+        setStatementButtonLoading(true);
+        loadTransactionsForStatement(new StatementTransactionsCallback() {
+            @Override
+            public void onSuccess(List<Transaction> transactions) {
+                setStatementButtonLoading(false);
+
+                List<Transaction> statementTransactions = applyStatementFilters(transactions);
+                if (statementTransactions.isEmpty()) {
+                    showStatementInfo("Nu există tranzacții", "Nu am găsit tranzacții pentru perioada și filtrele selectate.");
+                    return;
+                }
+
+                Collections.sort(statementTransactions, (a, b) ->
+                        parseTransactionDate(b.getCreatedAt()).compareTo(parseTransactionDate(a.getCreatedAt())));
+
+                try {
+                    File statementFile = createStatementPdf(statementTransactions);
+                    showStatementReadyDialog(statementFile, statementTransactions.size());
+                } catch (IOException e) {
+                    showStatementInfo("Extras negenerat", "Nu am putut crea fișierul PDF. Te rugăm să încerci din nou.");
+                }
+            }
+
+            @Override
+            public void onError() {
+                setStatementButtonLoading(false);
+                showStatementInfo("Extras negenerat", "Nu am putut încărca tranzacțiile necesare pentru extras.");
+            }
+        });
+    }
+
+    private void loadTransactionsForStatement(StatementTransactionsCallback callback) {
+        if (allAccountsMode) {
+            if (accounts.isEmpty()) {
+                ApiClient.getAccountService().getAccounts().enqueue(new Callback<ApiResponse<AccountsData>>() {
+                    @Override
+                    public void onResponse(Call<ApiResponse<AccountsData>> call,
+                                           Response<ApiResponse<AccountsData>> response) {
+                        if (response.isSuccessful()
+                                && response.body() != null
+                                && response.body().getData() != null
+                                && response.body().getData().getAccounts() != null) {
+                            accounts.clear();
+                            accounts.addAll(response.body().getData().getAccounts());
+                            loadStatementTransactionsForAllAccounts(callback);
+                        } else {
+                            callback.onError();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<ApiResponse<AccountsData>> call, Throwable t) {
+                        callback.onError();
+                    }
+                });
+                return;
+            }
+
+            loadStatementTransactionsForAllAccounts(callback);
+            return;
+        }
+
+        loadStatementTransactionsForAccount(accountId, 0, new ArrayList<>(), callback);
+    }
+
+    private void loadStatementTransactionsForAllAccounts(StatementTransactionsCallback callback) {
+        if (accounts.isEmpty()) {
+            callback.onSuccess(new ArrayList<>());
+            return;
+        }
+
+        List<Transaction> merged = new ArrayList<>();
+        final int[] pending = {accounts.size()};
+        final boolean[] failed = {false};
+
+        for (AccountData account : accounts) {
+            loadStatementTransactionsForAccount(account.getAccountId(), 0, new ArrayList<>(), new StatementTransactionsCallback() {
+                @Override
+                public void onSuccess(List<Transaction> transactions) {
+                    merged.addAll(transactions);
+                    finishStatementAccountRequest(callback, merged, pending, failed);
+                }
+
+                @Override
+                public void onError() {
+                    failed[0] = true;
+                    finishStatementAccountRequest(callback, merged, pending, failed);
+                }
+            });
+        }
+    }
+
+    private void finishStatementAccountRequest(StatementTransactionsCallback callback,
+                                               List<Transaction> merged,
+                                               int[] pending,
+                                               boolean[] failed) {
+        pending[0]--;
+        if (pending[0] > 0) return;
+
+        if (failed[0]) {
+            callback.onError();
+        } else {
+            callback.onSuccess(deduplicateOwnAccountTransfers(merged));
+        }
+    }
+
+    private void loadStatementTransactionsForAccount(int targetAccountId,
+                                                     int offset,
+                                                     List<Transaction> collector,
+                                                     StatementTransactionsCallback callback) {
+        ApiClient.getTransactionService()
+                .getTransactionsFiltered(targetAccountId, STATEMENT_PAGE_SIZE, offset, filterStartDate, filterEndDate)
+                .enqueue(new Callback<ApiResponse<TransactionsData>>() {
+                    @Override
+                    public void onResponse(Call<ApiResponse<TransactionsData>> call,
+                                           Response<ApiResponse<TransactionsData>> response) {
+                        if (!response.isSuccessful()
+                                || response.body() == null
+                                || response.body().getData() == null) {
+                            callback.onError();
+                            return;
+                        }
+
+                        TransactionsData data = response.body().getData();
+                        List<Transaction> pageTransactions = data.getTransactions();
+                        if (pageTransactions == null) {
+                            pageTransactions = new ArrayList<>();
+                        }
+
+                        collector.addAll(pageTransactions);
+
+                        boolean more;
+                        if (data.getPagination() != null) {
+                            more = data.getPagination().hasMore();
+                        } else {
+                            more = pageTransactions.size() >= STATEMENT_PAGE_SIZE;
+                        }
+
+                        if (more && !pageTransactions.isEmpty()) {
+                            loadStatementTransactionsForAccount(
+                                    targetAccountId,
+                                    offset + pageTransactions.size(),
+                                    collector,
+                                    callback
+                            );
+                        } else {
+                            callback.onSuccess(collector);
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<ApiResponse<TransactionsData>> call, Throwable t) {
+                        callback.onError();
+                    }
+                });
+    }
+
+    private List<Transaction> applyStatementFilters(List<Transaction> source) {
+        List<Transaction> fixedFiltered = applyFixedFilters(source);
+        String query = etSearch != null ? etSearch.getText().toString().trim().toLowerCase(Locale.ROOT) : "";
+
+        if (query.isEmpty()) {
+            return fixedFiltered;
+        }
+
+        List<Transaction> result = new ArrayList<>();
+        for (Transaction transaction : fixedFiltered) {
+            if (buildSearchText(transaction).contains(query)) {
+                result.add(transaction);
+            }
+        }
+        return result;
+    }
+
+    private File createStatementPdf(List<Transaction> transactions) throws IOException {
+        PdfDocument document = new PdfDocument();
+        int pageWidth = 595;
+        int pageHeight = 842;
+        int margin = 38;
+        int pageNumber = 1;
+
+        PdfDocument.Page page = document.startPage(
+                new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create());
+        Canvas canvas = page.getCanvas();
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        int y = drawStatementHeader(canvas, paint, pageWidth, margin, transactions);
+        y = drawStatementTableHeader(canvas, paint, margin, y, pageWidth);
+
+        for (Transaction transaction : transactions) {
+            if (y > pageHeight - 64) {
+                drawStatementFooter(canvas, paint, pageNumber, pageWidth, pageHeight);
+                document.finishPage(page);
+                pageNumber++;
+                page = document.startPage(
+                        new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create());
+                canvas = page.getCanvas();
+                y = drawStatementContinuationHeader(canvas, paint, pageWidth, margin);
+                y = drawStatementTableHeader(canvas, paint, margin, y, pageWidth);
+            }
+
+            y = drawStatementRow(canvas, paint, transaction, margin, y, pageWidth);
+        }
+
+        drawStatementFooter(canvas, paint, pageNumber, pageWidth, pageHeight);
+        document.finishPage(page);
+
+        File directory = new File(getCacheDir(), "statements");
+        if (!directory.exists() && !directory.mkdirs()) {
+            document.close();
+            throw new IOException("Unable to create statements directory");
+        }
+
+        String fileName = "SwiftBank_extras_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ROOT).format(new Date()) + ".pdf";
+        File file = new File(directory, fileName);
+        try (FileOutputStream outputStream = new FileOutputStream(file)) {
+            document.writeTo(outputStream);
+        } finally {
+            document.close();
+        }
+
+        return file;
+    }
+
+    private int drawStatementHeader(Canvas canvas,
+                                    Paint paint,
+                                    int pageWidth,
+                                    int margin,
+                                    List<Transaction> transactions) {
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.rgb(0, 55, 28));
+        canvas.drawRect(0, 0, pageWidth, 92, paint);
+
+        paint.setColor(Color.WHITE);
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        paint.setTextSize(24);
+        canvas.drawText("SwiftBank", margin, 40, paint);
+
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+        paint.setTextSize(11);
+        canvas.drawText("Extras generat din aplicația SwiftBank", margin, 62, paint);
+
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        paint.setTextSize(19);
+        paint.setTextAlign(Paint.Align.RIGHT);
+        canvas.drawText("Extras de cont", pageWidth - margin, 40, paint);
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+        paint.setTextSize(10);
+        canvas.drawText(formatGeneratedAt(), pageWidth - margin, 62, paint);
+        paint.setTextAlign(Paint.Align.LEFT);
+
+        int y = 126;
+        paint.setColor(Color.rgb(17, 24, 39));
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        paint.setTextSize(18);
+        canvas.drawText("Detalii extras", margin, y, paint);
+
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+        paint.setTextSize(11);
+        paint.setColor(Color.rgb(75, 85, 99));
+        y += 24;
+        canvas.drawText("Cont: " + getStatementAccountLabel(), margin, y, paint);
+        y += 18;
+        canvas.drawText("Perioadă: " + getStatementPeriodLabel(), margin, y, paint);
+        y += 18;
+        canvas.drawText(fitText("Filtre: " + getStatementFilterLabel(), paint, pageWidth - 2 * margin), margin, y, paint);
+
+        y += 28;
+        drawStatementSummary(canvas, paint, margin, y, pageWidth, transactions);
+        return y + 82;
+    }
+
+    private int drawStatementContinuationHeader(Canvas canvas, Paint paint, int pageWidth, int margin) {
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.rgb(0, 55, 28));
+        canvas.drawRect(0, 0, pageWidth, 58, paint);
+
+        paint.setColor(Color.WHITE);
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        paint.setTextSize(17);
+        canvas.drawText("SwiftBank · Extras de cont", margin, 36, paint);
+
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+        paint.setTextSize(10);
+        paint.setTextAlign(Paint.Align.RIGHT);
+        canvas.drawText(getStatementPeriodLabel(), pageWidth - margin, 36, paint);
+        paint.setTextAlign(Paint.Align.LEFT);
+        return 88;
+    }
+
+    private void drawStatementSummary(Canvas canvas,
+                                      Paint paint,
+                                      int margin,
+                                      int y,
+                                      int pageWidth,
+                                      List<Transaction> transactions) {
+        Map<String, Double> income = new LinkedHashMap<>();
+        Map<String, Double> expenses = new LinkedHashMap<>();
+        Map<String, Double> balance = new LinkedHashMap<>();
+
+        for (Transaction transaction : transactions) {
+            String currency = transaction.getCurrency() != null ? transaction.getCurrency() : accountCurrency;
+            double amount = transaction.getAmount();
+            balance.put(currency, balance.getOrDefault(currency, 0.0) + amount);
+            if (amount >= 0) {
+                income.put(currency, income.getOrDefault(currency, 0.0) + amount);
+            } else {
+                expenses.put(currency, expenses.getOrDefault(currency, 0.0) + Math.abs(amount));
+            }
+        }
+
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.rgb(245, 247, 250));
+        canvas.drawRoundRect(margin, y - 18, pageWidth - margin, y + 58, 12, 12, paint);
+
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        paint.setTextSize(11);
+        paint.setColor(Color.rgb(0, 150, 85));
+        canvas.drawText("Intrări", margin + 18, y + 5, paint);
+        paint.setColor(Color.rgb(239, 68, 68));
+        canvas.drawText("Ieșiri", margin + 190, y + 5, paint);
+        paint.setColor(Color.rgb(17, 24, 39));
+        canvas.drawText("Sold perioadă", margin + 362, y + 5, paint);
+
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+        paint.setTextSize(10);
+        paint.setColor(Color.rgb(55, 65, 81));
+        canvas.drawText(fitText(formatCurrencyTotals(income, false), paint, 145), margin + 18, y + 28, paint);
+        canvas.drawText(fitText(formatCurrencyTotals(expenses, false), paint, 145), margin + 190, y + 28, paint);
+        canvas.drawText(fitText(formatCurrencyTotals(balance, true), paint, 150), margin + 362, y + 28, paint);
+    }
+
+    private int drawStatementTableHeader(Canvas canvas, Paint paint, int margin, int y, int pageWidth) {
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.rgb(229, 231, 235));
+        canvas.drawRoundRect(margin, y, pageWidth - margin, y + 28, 8, 8, paint);
+
+        paint.setColor(Color.rgb(55, 65, 81));
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        paint.setTextSize(10);
+        canvas.drawText("Data", margin + 10, y + 18, paint);
+        canvas.drawText("Descriere", margin + 104, y + 18, paint);
+        canvas.drawText("Tip", margin + 316, y + 18, paint);
+        paint.setTextAlign(Paint.Align.RIGHT);
+        canvas.drawText("Sumă", pageWidth - margin - 10, y + 18, paint);
+        paint.setTextAlign(Paint.Align.LEFT);
+        return y + 40;
+    }
+
+    private int drawStatementRow(Canvas canvas, Paint paint, Transaction transaction, int margin, int y, int pageWidth) {
+        int rowHeight = 42;
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.rgb(243, 244, 246));
+        canvas.drawRect(margin, y + rowHeight - 1, pageWidth - margin, y + rowHeight, paint);
+
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+        paint.setTextSize(9);
+        paint.setColor(Color.rgb(75, 85, 99));
+        canvas.drawText(formatStatementDate(transaction.getCreatedAt()), margin + 10, y + 17, paint);
+
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        paint.setTextSize(10);
+        paint.setColor(Color.rgb(17, 24, 39));
+        canvas.drawText(fitText(getStatementDescription(transaction), paint, 202), margin + 104, y + 16, paint);
+
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+        paint.setTextSize(8);
+        paint.setColor(Color.rgb(107, 114, 128));
+        canvas.drawText(fitText(formatStatementStatus(transaction.getStatus()), paint, 202), margin + 104, y + 31, paint);
+
+        paint.setTextSize(9);
+        paint.setColor(Color.rgb(55, 65, 81));
+        canvas.drawText(fitText(getStatementTypeLabel(transaction), paint, 86), margin + 316, y + 22, paint);
+
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        paint.setTextSize(10);
+        paint.setColor(transaction.getAmount() >= 0 ? Color.rgb(0, 150, 85) : Color.rgb(17, 24, 39));
+        paint.setTextAlign(Paint.Align.RIGHT);
+        canvas.drawText(formatStatementAmount(transaction), pageWidth - margin - 10, y + 22, paint);
+        paint.setTextAlign(Paint.Align.LEFT);
+
+        return y + rowHeight;
+    }
+
+    private void drawStatementFooter(Canvas canvas, Paint paint, int pageNumber, int pageWidth, int pageHeight) {
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+        paint.setTextSize(8);
+        paint.setColor(Color.rgb(107, 114, 128));
+        canvas.drawText("Document generat automat de SwiftBank.", 38, pageHeight - 28, paint);
+        paint.setTextAlign(Paint.Align.RIGHT);
+        canvas.drawText("Pagina " + pageNumber, pageWidth - 38, pageHeight - 28, paint);
+        paint.setTextAlign(Paint.Align.LEFT);
+    }
+
+    private void showStatementReadyDialog(File statementFile, int transactionCount) {
+        String countText = transactionCount == 1 ? "1 tranzacție" : transactionCount + " tranzacții";
+        new SwiftBankDialog(this)
+                .setIcon(R.drawable.ic_document)
+                .setTitle("Extras generat")
+                .setMessage("Extrasul PDF este pregătit. Include " + countText
+                        + " și respectă perioada, filtrele și căutarea selectate.")
+                .setPrimaryButton("Deschide extrasul", v -> openStatementPdf(statementFile))
+                .setSecondaryButton("Închide", null)
+                .setCancelable(true)
+                .show();
+    }
+
+    private void showStatementInfo(String title, String message) {
+        new SwiftBankDialog(this)
+                .setIcon(R.drawable.ic_document)
+                .setTitle(title)
+                .setMessage(message)
+                .setPrimaryButton("Am înțeles", null)
+                .setCancelable(true)
+                .show();
+    }
+
+    private void openStatementPdf(File file) {
+        Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);
+        Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+        viewIntent.setDataAndType(uri, "application/pdf");
+        viewIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+        try {
+            startActivity(Intent.createChooser(viewIntent, "Deschide extrasul"));
+        } catch (ActivityNotFoundException e) {
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("application/pdf");
+            shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            try {
+                startActivity(Intent.createChooser(shareIntent, "Trimite extrasul"));
+            } catch (ActivityNotFoundException ignored) {
+                showStatementInfo("Nu pot deschide PDF-ul", "Nu există o aplicație disponibilă pentru fișiere PDF.");
+            }
+        }
+    }
+
+    private void setStatementButtonLoading(boolean loading) {
+        if (btnStatement == null) return;
+        btnStatement.setEnabled(!loading);
+        btnStatement.setAlpha(loading ? 0.45f : 1f);
+    }
+
+    private String getStatementAccountLabel() {
+        if (allAccountsMode) {
+            return "Toate conturile";
+        }
+
+        for (AccountData account : accounts) {
+            if (account.getAccountId() == accountId) {
+                return "Personal - " + account.getCurrency();
+            }
+        }
+
+        return "Cont " + accountCurrency;
+    }
+
+    private String getStatementAccountSentenceLabel() {
+        if (allAccountsMode) {
+            return "toate conturile";
+        }
+
+        return "contul " + getStatementAccountLabel();
+    }
+
+    private String getStatementPeriodLabel() {
+        if (filterStartDate == null && filterEndDate == null) {
+            return "Toată perioada disponibilă";
+        }
+        if (filterStartDate != null && filterEndDate != null) {
+            return formatDateChip(filterStartDate) + " - " + formatDateChip(filterEndDate);
+        }
+        if (filterStartDate != null) {
+            return "din " + formatDateChip(filterStartDate);
+        }
+        return "până la " + formatDateChip(filterEndDate);
+    }
+
+    private String getStatementFilterLabel() {
+        List<String> filters = new ArrayList<>();
+        if (fixedCategoryFilter != null && !fixedCategoryFilter.trim().isEmpty()) {
+            filters.add("categorie " + translateStatementCategory(fixedCategoryFilter));
+        }
+        if (fixedMerchantFilter != null && !fixedMerchantFilter.trim().isEmpty()) {
+            filters.add("comerciant " + fixedMerchantFilter.trim());
+        }
+        if (etSearch != null && !etSearch.getText().toString().trim().isEmpty()) {
+            filters.add("căutare \"" + etSearch.getText().toString().trim() + "\"");
+        }
+
+        if (filters.isEmpty()) {
+            return "fără filtre suplimentare";
+        }
+
+        return String.join(", ", filters);
+    }
+
+    private String getStatementDescription(Transaction transaction) {
+        if (transaction instanceof TransferTransaction) {
+            TransferTransaction transfer = (TransferTransaction) transaction;
+            String type = transaction.getTransactionType();
+            if ("SELF_IN".equals(type) || "SELF_OUT".equals(type)) {
+                if (transfer.hasCurrencyConversion()) {
+                    String from = transaction.getAmount() > 0 ? transfer.getOriginalCurrency() : transaction.getCurrency();
+                    String to = transaction.getAmount() > 0 ? transaction.getCurrency() : transfer.getOriginalCurrency();
+                    return "Schimb valutar " + safeValue(from) + " → " + safeValue(to);
+                }
+                return "Transfer între conturile proprii";
+            }
+
+            String beneficiary = transfer.getBeneficiaryName();
+            return beneficiary != null && !beneficiary.trim().isEmpty() ? beneficiary : safeValue(transaction.getTitle());
+        }
+
+        if (transaction instanceof CardTransaction) {
+            String merchant = ((CardTransaction) transaction).getMerchantName();
+            return merchant != null && !merchant.trim().isEmpty() ? merchant : safeValue(transaction.getTitle());
+        }
+
+        if (transaction instanceof BillTransaction) {
+            return ((BillTransaction) transaction).getBillerName();
+        }
+
+        return safeValue(transaction.getTitle());
+    }
+
+    private String getStatementTypeLabel(Transaction transaction) {
+        if (transaction instanceof TransferTransaction) {
+            String type = transaction.getTransactionType();
+            if ("SELF_IN".equals(type) || "SELF_OUT".equals(type)) {
+                return "Schimb valutar";
+            }
+            return "Transfer";
+        }
+
+        if (transaction instanceof BillTransaction) {
+            return "Factură";
+        }
+
+        if (transaction instanceof CardTransaction) {
+            return "Card";
+        }
+
+        return translateStatementCategory(getTransactionCategory(transaction));
+    }
+
+    private String formatStatementStatus(String status) {
+        if (status == null || status.trim().isEmpty()) {
+            return "status indisponibil";
+        }
+
+        switch (status.trim().toUpperCase(Locale.ROOT)) {
+            case "COMPLETED":
+            case "FINALIZED":
+                return "finalizată";
+            case "PENDING":
+                return "în așteptare";
+            case "PENDING_APPROVAL":
+                return "așteaptă confirmarea";
+            case "FAILED":
+            case "REJECTED":
+                return "respinsă";
+            case "CANCELLED":
+                return "anulată";
+            default:
+                return status.toLowerCase(Locale.ROOT);
+        }
+    }
+
+    private String formatStatementAmount(Transaction transaction) {
+        String currency = transaction.getCurrency() != null ? transaction.getCurrency() : accountCurrency;
+        double amount = transaction.getAmount();
+        String prefix = amount > 0 ? "+" : "";
+        return prefix + formatBalance(amount) + " " + getCurrencySymbol(currency);
+    }
+
+    private String formatStatementDate(String createdAt) {
+        Date date = parseTransactionDate(createdAt);
+        if (date.getTime() == 0) {
+            return "-";
+        }
+        return new SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(date);
+    }
+
+    private String formatGeneratedAt() {
+        return "Generat la " + new SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(new Date());
+    }
+
+    private String formatCurrencyTotals(Map<String, Double> totals, boolean keepSign) {
+        if (totals.isEmpty()) {
+            return "0,00";
+        }
+
+        List<String> parts = new ArrayList<>();
+        for (Map.Entry<String, Double> entry : totals.entrySet()) {
+            double value = entry.getValue();
+            String sign = keepSign && value > 0 ? "+" : "";
+            parts.add(sign + formatBalance(value) + " " + getCurrencySymbol(entry.getKey()));
+        }
+        return String.join(" · ", parts);
+    }
+
+    private String translateStatementCategory(String categoryName) {
+        String normalized = normalizeFilterValue(categoryName);
+        switch (normalized) {
+            case "transfers":
+            case "transferuri":
+                return "Transferuri";
+            case "food":
+                return "Mâncare și băuturi";
+            case "shopping":
+                return "Cumpărături";
+            case "transport":
+                return "Transport";
+            case "entertainment":
+                return "Divertisment";
+            case "groceries":
+                return "Alimente";
+            case "health":
+                return "Sănătate";
+            case "utilities":
+                return "Utilități";
+            case "telecom":
+                return "Telecom";
+            case "internet":
+                return "Internet";
+            case "tv":
+                return "TV & Cablu";
+            case "insurance":
+                return "Asigurări";
+            case "travel":
+                return "Călătorii";
+            case "services":
+                return "Servicii";
+            case "subscriptions":
+                return "Abonamente";
+            case "furniture":
+                return "Mobilier";
+            case "electronics":
+                return "Electronice";
+            case "other":
+                return "Altele";
+            default:
+                return categoryName == null || categoryName.trim().isEmpty()
+                        ? "Altele"
+                        : categoryName.trim();
+        }
+    }
+
+    private String fitText(String text, Paint paint, float maxWidth) {
+        if (text == null) return "";
+        String clean = text.trim().replace("\n", " ");
+        if (paint.measureText(clean) <= maxWidth) {
+            return clean;
+        }
+
+        String suffix = "...";
+        while (clean.length() > 0 && paint.measureText(clean + suffix) > maxWidth) {
+            clean = clean.substring(0, clean.length() - 1);
+        }
+        return clean + suffix;
+    }
+
+    private String safeValue(String value) {
+        return value == null || value.trim().isEmpty() ? "-" : value.trim();
     }
 
     private void showLoading() {
@@ -897,7 +2111,7 @@ public class TransactionsActivity extends AppCompatActivity {
             case "health":
                 return "Sanatate";
             case "utilities":
-                return "Utilitati";
+                return "Utilit\u0103\u021Bi";
             case "telecom":
                 return "Telecom";
             case "internet":
@@ -905,7 +2119,7 @@ public class TransactionsActivity extends AppCompatActivity {
             case "tv":
                 return "TV & Cablu";
             case "insurance":
-                return "Asigurari";
+                return "Asigur\u0103ri";
             case "travel":
                 return "Calatorii";
             case "services":
@@ -986,7 +2200,7 @@ public class TransactionsActivity extends AppCompatActivity {
 
     private String getDisplaySubtitle(Transaction transaction) {
         if (transaction instanceof CardTransaction && ((CardTransaction) transaction).isPendingApproval()) {
-            return "Asteapta confirmarea";
+            return "A\u0219teapt\u0103 confirmarea";
         }
 
         if (transaction instanceof BillTransaction) {
@@ -996,7 +2210,7 @@ public class TransactionsActivity extends AppCompatActivity {
 
         String subtitle = transaction.getSubtitle();
         if ("CARD".equals(transaction.getTransactionType()) && "PENDING".equals(transaction.getStatus())) {
-            return "Suma blocata";
+            return "Suma blocat\u0103";
         }
 
         if ("CARD".equals(transaction.getTransactionType())) {
@@ -1007,18 +2221,18 @@ public class TransactionsActivity extends AppCompatActivity {
         }
 
         if ("CARD".equals(transaction.getTransactionType()) && (subtitle == null || subtitle.isEmpty())) {
-            return "Plată cu cardul";
+            return "Plata cu cardul";
         }
 
         return subtitle != null && !subtitle.isEmpty() ? subtitle : formatTime(transaction.getCreatedAt());
     }
 
     private String getBillCategoryDisplayName(String category) {
-        if (category == null || category.isEmpty()) return "Plată factură";
+        if (category == null || category.isEmpty()) return "Plat\u0103 factur\u0103";
 
         switch (category.toLowerCase()) {
             case "utilities":
-                return "Utilități";
+                return "Utilit\u0103\u021Bi";
             case "telecom":
                 return "Telecom";
             case "internet":
@@ -1026,7 +2240,7 @@ public class TransactionsActivity extends AppCompatActivity {
             case "tv":
                 return "TV & Cablu";
             case "insurance":
-                return "Asigurări";
+                return "Asigur\u0103ri";
             default:
                 return category.substring(0, 1).toUpperCase() + category.substring(1);
         }
@@ -1043,6 +2257,9 @@ public class TransactionsActivity extends AppCompatActivity {
         return parts[0].substring(0, 1).toUpperCase();
     }
 
+    private int dpToPx(float value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
     private String formatBalance(double balance) {
         DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.getDefault());
         symbols.setGroupingSeparator('.');
@@ -1054,9 +2271,9 @@ public class TransactionsActivity extends AppCompatActivity {
     private String getCurrencySymbol(String currency) {
         if (currency == null) return "lei";
         switch (currency.trim()) {
-            case "EUR": return "€";
+            case "EUR": return "\u20AC";
             case "USD": return "$";
-            case "GBP": return "£";
+            case "GBP": return "\u00A3";
             default: return "lei";
         }
     }
@@ -1193,6 +2410,11 @@ public class TransactionsActivity extends AppCompatActivity {
 
             void bind(DateHeader header) {
                 tvDate.setText(header.date);
+
+                if ("MULTI".equals(header.currency)) {
+                    tvTotal.setText("");
+                    return;
+                }
 
                 String totalText;
                 if (header.total >= 0) {

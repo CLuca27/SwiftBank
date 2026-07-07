@@ -2,12 +2,14 @@ package com.example.swiftbank.managers;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 
 import androidx.security.crypto.EncryptedSharedPreferences;
 import androidx.security.crypto.MasterKey;
 
 public class AuthTokenManager {
 
+    private static final String TAG = "AuthTokenManager";
     private static AuthTokenManager instance;
     private static final String PREFS_NAME = "tokens";
     private static final String REFRESH_TOKEN = "REFRESH_TOKEN";
@@ -33,7 +35,8 @@ public class AuthTokenManager {
         }
         catch(Exception e)
         {
-            e.printStackTrace();
+            Log.e(TAG, "Error creating encrypted token prefs, using fallback", e);
+            prefs = appContext.getSharedPreferences(PREFS_NAME + "_fallback", Context.MODE_PRIVATE);
         }
     }
 

@@ -81,7 +81,8 @@ Completeaza:
 
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5.5
+OPENAI_FALLBACK_MODEL=gpt-4o
 ```
 
 Nu urca `.env` in Git.

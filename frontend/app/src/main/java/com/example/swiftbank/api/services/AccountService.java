@@ -11,6 +11,7 @@ import com.example.swiftbank.api.dto.response.data.success.NewAccountData;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.GET;
+import retrofit2.http.Header;
 import retrofit2.http.POST;
 import retrofit2.http.Query;
 
@@ -23,7 +24,10 @@ public interface AccountService {
     Call<ApiResponse<NewAccountData>> addAccount(@Body AddAccountRequest request);
 
     @POST("/api/accounts/exchange")
-    Call<ApiResponse<ExchangeResultData>> exchange(@Body ExchangeRequest request);
+    Call<ApiResponse<ExchangeResultData>> exchange(
+            @Header("Idempotency-Key") String idempotencyKey,
+            @Body ExchangeRequest request
+    );
 
     @GET("/rates/convert")
     Call<ApiResponse<ExchangeRateData>> getExchangeRate(@Query("from") String from, @Query("to") String to);

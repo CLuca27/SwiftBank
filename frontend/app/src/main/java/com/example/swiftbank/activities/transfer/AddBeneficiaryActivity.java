@@ -213,6 +213,9 @@ public class AddBeneficiaryActivity extends AppCompatActivity {
                     resultIntent.putExtra("iban", validatedIBAN.getIban());
                     resultIntent.putExtra("name", name);
                     resultIntent.putExtra("bank_name", validatedIBAN.getBankName());
+                    if (validatedIBAN.getProfilePhoto() != null) {
+                        resultIntent.putExtra("profile_photo", validatedIBAN.getProfilePhoto());
+                    }
                     setResult(RESULT_OK, resultIntent);
                     finish();
                 }
@@ -264,6 +267,9 @@ public class AddBeneficiaryActivity extends AppCompatActivity {
                             resultIntent.putExtra("iban", beneficiary.getIban());
                             resultIntent.putExtra("name", beneficiary.getName());
                             resultIntent.putExtra("bank_name", beneficiary.getBankName());
+                            if (beneficiary.getProfilePhoto() != null) {
+                                resultIntent.putExtra("profile_photo", beneficiary.getProfilePhoto());
+                            }
                             setResult(RESULT_OK, resultIntent);
                             finish();
                         } else if (response.code() == 409) {

@@ -25,6 +25,7 @@ import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.response.data.error.ErrorData;
 import com.example.swiftbank.api.dto.response.data.error.OtpCooldownErrorData;
 import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
+import com.example.swiftbank.utils.SwiftBankDialog;
 import com.example.swiftbank.views.ParticlesView;
 
 import retrofit2.Call;
@@ -202,6 +203,10 @@ public class OtpActivity extends AppCompatActivity {
         tvError.setVisibility(View.GONE);
     }
 
+    private void showNetworkError(View.OnClickListener onRetry) {
+        SwiftBankDialog.showServerErrorDialog(this, onRetry);
+    }
+
     private void showLoading(boolean show) {
         loadingOverlay.setVisibility(show ? View.VISIBLE : View.GONE);
         btnVerify.setEnabled(!show && isOtpComplete());
@@ -260,7 +265,7 @@ public class OtpActivity extends AppCompatActivity {
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
                 showLoading(false);
                 Log.e(TAG, "Network error: " + t.getMessage());
-                showError("Eroare de conexiune.");
+                showNetworkError(v -> verifyOtp());
             }
         });
     }
@@ -293,7 +298,7 @@ public class OtpActivity extends AppCompatActivity {
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
                 showLoading(false);
                 Log.e(TAG, "Network error: " + t.getMessage());
-                showError("Eroare de conexiune.");
+                showNetworkError(v -> resendOtp());
             }
         });
     }

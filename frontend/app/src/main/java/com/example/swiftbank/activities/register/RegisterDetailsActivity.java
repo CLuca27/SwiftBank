@@ -34,6 +34,7 @@ import com.example.swiftbank.api.dto.response.data.success.CheckData;
 import com.example.swiftbank.api.dto.response.data.success.PlaceDetailsData;
 import com.example.swiftbank.api.dto.response.data.success.PlaceSuggestionData;
 import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
+import com.example.swiftbank.utils.SwiftBankDialog;
 import com.example.swiftbank.views.ParticlesView;
 
 import java.util.Calendar;
@@ -497,6 +498,10 @@ public class RegisterDetailsActivity extends BackActivity {
         tvError.setVisibility(View.GONE);
     }
 
+    private void showNetworkError(View.OnClickListener onRetry) {
+        SwiftBankDialog.showServerErrorDialog(this, onRetry);
+    }
+
     private void showFieldError(EditText editText, String errorMessage) {
         editText.setError(errorMessage);
     }
@@ -581,7 +586,7 @@ public class RegisterDetailsActivity extends BackActivity {
             public void onFailure(Call<ApiResponse<CheckData>> call, Throwable t) {
                 showLoading(false);
                 Log.e(TAG, "Network error: " + t.getMessage());
-                showError("Eroare de conexiune.");
+                showNetworkError(v -> onContinueClicked());
             }
         });
     }

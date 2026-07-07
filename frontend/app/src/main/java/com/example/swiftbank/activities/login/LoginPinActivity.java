@@ -326,7 +326,7 @@ public class LoginPinActivity extends AppCompatActivity {
             public void onFailure(Call<ApiResponse<LoginData>> call, Throwable t) {
                 showLoading(false);
                 Log.e(TAG, "Network error: " + t.getMessage());
-                showErrorWithShake("Eroare de conexiune");
+                SwiftBankDialog.showServerErrorDialog(LoginPinActivity.this, v -> login(pin));
             }
         });
     }
@@ -488,7 +488,7 @@ public class LoginPinActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<ApiResponse<ForgotPinData>> call, Throwable t) {
                 showLoading(false);
-                SwiftBankDialog.showNoNetworkDialog(LoginPinActivity.this, v -> requestPinReset());
+                SwiftBankDialog.showServerErrorDialog(LoginPinActivity.this, v -> requestPinReset());
             }
         });
     }

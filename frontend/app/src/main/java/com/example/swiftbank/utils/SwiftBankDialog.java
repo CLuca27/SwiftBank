@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -48,7 +49,16 @@ public class SwiftBankDialog {
     }
 
     public SwiftBankDialog setIcon(int iconRes) {
+        ivIcon.setVisibility(View.VISIBLE);
         ivIcon.setImageResource(iconRes);
+        return this;
+    }
+
+    public SwiftBankDialog hideIcon() {
+        ivIcon.setVisibility(View.GONE);
+        ViewGroup.MarginLayoutParams titleParams = (ViewGroup.MarginLayoutParams) tvTitle.getLayoutParams();
+        titleParams.topMargin = 0;
+        tvTitle.setLayoutParams(titleParams);
         return this;
     }
 

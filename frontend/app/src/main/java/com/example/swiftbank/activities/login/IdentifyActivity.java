@@ -17,7 +17,6 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -31,6 +30,7 @@ import com.example.swiftbank.api.dto.response.ApiResponse;
 import com.example.swiftbank.api.dto.response.data.error.ErrorData;
 import com.example.swiftbank.api.dto.response.data.success.IdentifyData;
 import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
+import com.example.swiftbank.utils.SwiftBankDialog;
 import com.example.swiftbank.views.ParticlesView;
 
 import retrofit2.Call;
@@ -237,7 +237,11 @@ public class IdentifyActivity extends AppCompatActivity {
     }
 
     private void showError(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        SwiftBankDialog.showErrorDialog(this, "Nu am putut continua", message);
+    }
+
+    private void showNetworkError(View.OnClickListener onRetry) {
+        SwiftBankDialog.showServerErrorDialog(this, onRetry);
     }
 
     private void showLoading(boolean show) {
@@ -287,7 +291,7 @@ public class IdentifyActivity extends AppCompatActivity {
             public void onFailure(Call<ApiResponse<IdentifyData>> call, Throwable t) {
                 showLoading(false);
                 Log.e(TAG, "Network error: " + t.getMessage());
-                showError("Eroare de conexiune");
+                showNetworkError(v -> checkPhone(phone));
             }
         });
     }
@@ -315,7 +319,7 @@ public class IdentifyActivity extends AppCompatActivity {
             public void onFailure(Call<ApiResponse<IdentifyData>> call, Throwable t) {
                 showLoading(false);
                 Log.e(TAG, "Network error: " + t.getMessage());
-                showError("Eroare de conexiune");
+                showNetworkError(v -> checkEmail(email));
             }
         });
     }

@@ -5,6 +5,7 @@ import android.content.Context;
 import com.example.swiftbank.api.interceptors.AuthInterceptor;
 import com.example.swiftbank.api.interceptors.TokenAuthenticator;
 import com.example.swiftbank.api.services.AccountService;
+import com.example.swiftbank.api.services.AiService;
 import com.example.swiftbank.api.services.AuthService;
 import com.example.swiftbank.api.services.BillService;
 import com.example.swiftbank.api.services.CardService;
@@ -44,6 +45,7 @@ public final class ApiClient {
     private static CardService cardService;
     private static CardPaymentService cardPaymentService;
     private static BillService billService;
+    private static AiService aiService;
     private static StatisticsService statisticsService;
 
     private ApiClient() {
@@ -89,6 +91,7 @@ public final class ApiClient {
         cardService = createService(CardService.class);
         cardPaymentService = createService(CardPaymentService.class);
         billService = createService(BillService.class);
+        aiService = createService(AiService.class);
         statisticsService = createService(StatisticsService.class);
 
         isInitialized = true;
@@ -155,6 +158,11 @@ public final class ApiClient {
     public static BillService getBillService() {
         getRetrofit();
         return billService;
+    }
+
+    public static AiService getAiService() {
+        getRetrofit();
+        return aiService;
     }
 
     public static StatisticsService getStatisticsService() {

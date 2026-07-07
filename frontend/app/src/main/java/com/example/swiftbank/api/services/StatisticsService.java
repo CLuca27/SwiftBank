@@ -11,7 +11,10 @@ import retrofit2.http.Query;
 public interface StatisticsService {
 
     @GET("/api/statistics")
-    Call<ApiResponse<StatisticsData>> getStatistics(@Query("period") String period);
+    Call<ApiResponse<StatisticsData>> getStatistics(
+            @Query("period") String period,
+            @Query("granularity") String granularity
+    );
 
     @GET("/api/statistics/balance-history")
     Call<ApiResponse<BalanceHistoryData>> getBalanceHistory(@Query("period") String period);

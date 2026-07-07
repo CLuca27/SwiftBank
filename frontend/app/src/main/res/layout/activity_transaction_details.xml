@@ -272,10 +272,11 @@
                                 tools:text="Personal" />
 
                             <TextView
+                                android:id="@+id/tvAccountSeparator"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginHorizontal="4dp"
-                                android:text="·"
+                                android:text="&#183;"
                                 android:textColor="@color/blue_accent"
                                 android:textSize="14sp" />
 
@@ -491,6 +492,7 @@
                         android:paddingVertical="8dp">
 
                         <TextView
+                            android:id="@+id/tvBeneficiaryLabel"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -628,6 +630,7 @@
                         android:visibility="gone">
 
                         <TextView
+                            android:id="@+id/tvTransferCategoryLabel"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -832,6 +835,7 @@
                         android:visibility="gone">
 
                         <TextView
+                            android:id="@+id/tvOriginalAmountLabel"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -916,6 +920,7 @@
                         android:paddingVertical="8dp">
 
                         <TextView
+                            android:id="@+id/tvTotalAmountLabel"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"

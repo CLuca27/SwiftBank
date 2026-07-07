@@ -58,10 +58,10 @@ public class TransactionDetailsActivity extends AppCompatActivity {
     private LinearLayout sectionPaymentInfo, sectionTransferInfo, sectionCardInfo, sectionBillInfo;
 
     // Payment Info
-    private TextView tvAccountName, tvAccountCurrency;
+    private TextView tvAccountName, tvAccountSeparator, tvAccountCurrency;
 
     // Transfer Info
-    private TextView tvBeneficiaryName, tvIban, tvBankName, tvDescription, tvReference, tvTransferCategory;
+    private TextView tvBeneficiaryLabel, tvBeneficiaryName, tvIban, tvBankName, tvDescription, tvReference, tvTransferCategoryLabel, tvTransferCategory;
     private ImageView ivTransferCategoryIcon;
     private LinearLayout rowIban, rowBankName, rowDescription, rowReference, rowTransferCategory;
 
@@ -76,7 +76,7 @@ public class TransactionDetailsActivity extends AppCompatActivity {
 
     // Amount breakdown
     private LinearLayout sectionAmountBreakdown;
-    private TextView tvOriginalAmount, tvExchangeRate, tvFees, tvTotalAmount;
+    private TextView tvOriginalAmountLabel, tvOriginalAmount, tvExchangeRate, tvFees, tvTotalAmountLabel, tvTotalAmount;
     private LinearLayout rowOriginalAmount, rowExchangeRate, rowFees;
 
     // Loading
@@ -132,13 +132,16 @@ public class TransactionDetailsActivity extends AppCompatActivity {
         sectionBillInfo = findViewById(R.id.sectionBillInfo);
 
         tvAccountName = findViewById(R.id.tvAccountName);
+        tvAccountSeparator = findViewById(R.id.tvAccountSeparator);
         tvAccountCurrency = findViewById(R.id.tvAccountCurrency);
 
+        tvBeneficiaryLabel = findViewById(R.id.tvBeneficiaryLabel);
         tvBeneficiaryName = findViewById(R.id.tvBeneficiaryName);
         tvIban = findViewById(R.id.tvIban);
         tvBankName = findViewById(R.id.tvBankName);
         tvDescription = findViewById(R.id.tvDescription);
         tvReference = findViewById(R.id.tvReference);
+        tvTransferCategoryLabel = findViewById(R.id.tvTransferCategoryLabel);
         tvTransferCategory = findViewById(R.id.tvTransferCategory);
         ivTransferCategoryIcon = findViewById(R.id.ivTransferCategoryIcon);
         rowIban = findViewById(R.id.rowIban);
@@ -164,9 +167,11 @@ public class TransactionDetailsActivity extends AppCompatActivity {
         tvInvoiceRef = findViewById(R.id.tvInvoiceRef);
 
         sectionAmountBreakdown = findViewById(R.id.sectionAmountBreakdown);
+        tvOriginalAmountLabel = findViewById(R.id.tvOriginalAmountLabel);
         tvOriginalAmount = findViewById(R.id.tvOriginalAmount);
         tvExchangeRate = findViewById(R.id.tvExchangeRate);
         tvFees = findViewById(R.id.tvFees);
+        tvTotalAmountLabel = findViewById(R.id.tvTotalAmountLabel);
         tvTotalAmount = findViewById(R.id.tvTotalAmount);
         rowOriginalAmount = findViewById(R.id.rowOriginalAmount);
         rowExchangeRate = findViewById(R.id.rowExchangeRate);
@@ -245,16 +250,17 @@ public class TransactionDetailsActivity extends AppCompatActivity {
         tvTitle.setText(transaction.getTitle());
 
         // Amount
+        double displayAmount = getHeaderDisplayAmount(transaction);
+        String displayCurrency = getHeaderDisplayCurrency(transaction);
         String amountText;
-        if (transaction.getAmount() >= 0) {
-            amountText = "+" + formatBalance(transaction.getAmount()) + " " + getCurrencySymbol(transaction.getCurrency());
+        if (displayAmount >= 0) {
+            amountText = "+" + formatMoney(displayAmount, displayCurrency);
             tvAmount.setTextColor(ContextCompat.getColor(this, R.color.green_accent));
         } else {
-            amountText = formatBalance(transaction.getAmount()) + " " + getCurrencySymbol(transaction.getCurrency());
+            amountText = formatMoney(displayAmount, displayCurrency);
             tvAmount.setTextColor(ContextCompat.getColor(this, R.color.white));
         }
         tvAmount.setText(amountText);
-
         // Status
         String status = transaction.getStatus();
         if ("COMPLETED".equals(status)) {
@@ -272,8 +278,9 @@ public class TransactionDetailsActivity extends AppCompatActivity {
 
         // Payment info (shown for all)
         sectionPaymentInfo.setVisibility(View.VISIBLE);
-        tvAccountName.setText("Cont " + accountCurrency);
-        tvAccountCurrency.setText(accountCurrency);
+        tvAccountName.setText(formatAccountLabel(accountCurrency));
+        tvAccountSeparator.setVisibility(View.GONE);
+        tvAccountCurrency.setVisibility(View.GONE);
 
         // Icon
         setupIcon(transaction);
@@ -299,7 +306,7 @@ public class TransactionDetailsActivity extends AppCompatActivity {
             TransferTransaction transfer = (TransferTransaction) transaction;
             String beneficiary = transfer.getBeneficiaryName();
 
-            if (isExchangeTransfer(transfer)) {
+            if (transfer.hasCurrencyConversion()) {
                 cardIcon.setVisibility(View.GONE);
                 cardInitials.setVisibility(View.GONE);
                 exchangeIconContainer.setVisibility(View.VISIBLE);
@@ -445,22 +452,30 @@ public class TransactionDetailsActivity extends AppCompatActivity {
 
         String type = transaction.getTransactionType();
         boolean isSelfTransfer = "SELF_IN".equals(type) || "SELF_OUT".equals(type);
+        tvTransferCategoryLabel.setText("Transfer");
 
         if (isSelfTransfer) {
-            tvBeneficiaryName.setText("Transfer între conturi proprii");
+            tvBeneficiaryLabel.setText("Transfer");
+            tvBeneficiaryName.setText("\u00centre conturile tale");
             rowIban.setVisibility(View.GONE);
             rowBankName.setVisibility(View.GONE);
 
-            // Show transfer category for self transfers
             rowTransferCategory.setVisibility(View.VISIBLE);
-            tvTransferCategory.setText("Schimb valutar");
+            tvTransferCategory.setText(transaction.hasCurrencyConversion()
+                    ? "Schimb valutar automat"
+                    : "\u00centre conturile tale");
             ivTransferCategoryIcon.setVisibility(View.GONE);
         } else {
+            boolean isIncoming = "TRANSFER_IN".equals(type);
+            tvBeneficiaryLabel.setText(isIncoming ? "Expeditor" : "Beneficiar");
+
             rowIban.setVisibility(View.VISIBLE);
-            tvBeneficiaryName.setText(transaction.getBeneficiaryName() != null ?
-                    transaction.getBeneficiaryName() : "-");
-            tvIban.setText(transaction.getIban() != null ?
-                    formatIban(transaction.getIban()) : "-");
+            tvBeneficiaryName.setText(transaction.getBeneficiaryName() != null
+                    ? transaction.getBeneficiaryName()
+                    : "-");
+            tvIban.setText(transaction.getIban() != null
+                    ? formatIban(transaction.getIban())
+                    : "-");
 
             if (transaction.getBankName() != null && !transaction.getBankName().isEmpty()) {
                 rowBankName.setVisibility(View.VISIBLE);
@@ -469,15 +484,11 @@ public class TransactionDetailsActivity extends AppCompatActivity {
                 rowBankName.setVisibility(View.GONE);
             }
 
-            // Show transfer category for regular transfers
             rowTransferCategory.setVisibility(View.VISIBLE);
-            boolean isIncoming = "TRANSFER_IN".equals(type);
-            tvTransferCategory.setText(isIncoming ? "Transfer primit" : "Transfer trimis");
-            ivTransferCategoryIcon.setVisibility(View.VISIBLE);
-            ivTransferCategoryIcon.setImageResource(isIncoming ? R.drawable.ic_transfer_in : R.drawable.ic_transfer_out);
+            tvTransferCategory.setText(isIncoming ? "De la expeditor" : "C\u0103tre beneficiar");
+            ivTransferCategoryIcon.setVisibility(View.GONE);
         }
 
-        // Description (what user wrote)
         if (transaction.getDescription() != null && !transaction.getDescription().isEmpty()) {
             rowDescription.setVisibility(View.VISIBLE);
             tvDescription.setText(transaction.getDescription());
@@ -485,7 +496,6 @@ public class TransactionDetailsActivity extends AppCompatActivity {
             rowDescription.setVisibility(View.GONE);
         }
 
-        // Reference (system reference)
         if (transaction.getReference() != null && !transaction.getReference().isEmpty()) {
             rowReference.setVisibility(View.VISIBLE);
             tvReference.setText(transaction.getReference());
@@ -493,7 +503,6 @@ public class TransactionDetailsActivity extends AppCompatActivity {
             rowReference.setVisibility(View.GONE);
         }
     }
-
     private void displayBillTransaction(BillTransaction transaction) {
         sectionBillInfo.setVisibility(View.VISIBLE);
         sectionTransferInfo.setVisibility(View.GONE);
@@ -501,24 +510,9 @@ public class TransactionDetailsActivity extends AppCompatActivity {
 
         tvBillerName.setText(displayValue(transaction.getBillerName()));
         tvBillerCategory.setText(getCategoryDisplayName(transaction.getBillerCategory()));
-        applyBillProviderIcon(transaction);
+        applyBillFallbackIcon(transaction);
         tvClientCode.setText(displayValue(transaction.getClientCode()));
         tvInvoiceRef.setText(displayValue(transaction.getInvoiceReference()));
-    }
-
-    private void applyBillProviderIcon(BillTransaction transaction) {
-        String logoUrl = transaction.getMerchantLogoUrl();
-        if (logoUrl != null && !logoUrl.trim().isEmpty()) {
-            ImageViewCompat.setImageTintList(ivBillerCategoryIcon, null);
-            ivBillerCategoryIcon.clearColorFilter();
-            ivBillerCategoryIcon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-
-            if (RemoteImageLoader.load(logoUrl, ivBillerCategoryIcon, () -> applyBillFallbackIcon(transaction))) {
-                return;
-            }
-        }
-
-        applyBillFallbackIcon(transaction);
     }
 
     private void applyBillFallbackIcon(BillTransaction transaction) {
@@ -553,17 +547,22 @@ public class TransactionDetailsActivity extends AppCompatActivity {
     private void displayAmountBreakdown(Transaction transaction) {
         sectionAmountBreakdown.setVisibility(View.VISIBLE);
 
-        double totalAmount = Math.abs(transaction.getAmount());
-        double fees = 0;
+        double totalAmount = Math.abs(getHeaderDisplayAmount(transaction));
+        String totalCurrency = getHeaderDisplayCurrency(transaction);
         rowExchangeRate.setVisibility(View.GONE);
+        tvOriginalAmountLabel.setText("Sum\u0103 original\u0103");
+        tvTotalAmountLabel.setText("Sum\u0103 total\u0103");
 
-        // Check for currency conversion
         if (transaction instanceof TransferTransaction) {
             TransferTransaction transfer = (TransferTransaction) transaction;
             if (transfer.hasCurrencyConversion() && transfer.getOriginalAmount() != null) {
                 rowOriginalAmount.setVisibility(View.VISIBLE);
-                tvOriginalAmount.setText(formatBalance(Math.abs(transfer.getOriginalAmount())) +
-                        " " + getCurrencySymbol(transfer.getOriginalCurrency()));
+                tvOriginalAmountLabel.setText(getTransferOriginalAmountLabel(transfer));
+                tvOriginalAmount.setText(formatMoney(getExchangeFromAmount(transfer), getExchangeFromCurrency(transfer)));
+
+                totalAmount = getExchangeToAmount(transfer);
+                totalCurrency = getExchangeToCurrency(transfer);
+                tvTotalAmountLabel.setText(getTransferConvertedAmountLabel(transfer));
 
                 String exchangeRate = formatExchangeRate(transfer);
                 if (exchangeRate != null) {
@@ -577,8 +576,14 @@ public class TransactionDetailsActivity extends AppCompatActivity {
             CardTransaction card = (CardTransaction) transaction;
             if (card.hasCurrencyConversion() && card.getOriginalAmount() != null) {
                 rowOriginalAmount.setVisibility(View.VISIBLE);
-                tvOriginalAmount.setText(formatBalance(Math.abs(card.getOriginalAmount())) +
-                        " " + getCurrencySymbol(card.getOriginalCurrency()));
+                tvOriginalAmountLabel.setText("Sum\u0103 original\u0103");
+                tvOriginalAmount.setText(formatMoney(Math.abs(card.getOriginalAmount()), card.getOriginalCurrency()));
+
+                String exchangeRate = formatCardExchangeRate(card);
+                if (exchangeRate != null) {
+                    rowExchangeRate.setVisibility(View.VISIBLE);
+                    tvExchangeRate.setText(exchangeRate);
+                }
             } else {
                 rowOriginalAmount.setVisibility(View.GONE);
             }
@@ -586,14 +591,64 @@ public class TransactionDetailsActivity extends AppCompatActivity {
             rowOriginalAmount.setVisibility(View.GONE);
         }
 
-        // Fees (for now always 0)
         rowFees.setVisibility(View.VISIBLE);
-        tvFees.setText("Fără comision");
+        tvFees.setText("F\u0103r\u0103 comision");
 
-        // Total
-        tvTotalAmount.setText(formatBalance(totalAmount) + " " + getCurrencySymbol(transaction.getCurrency()));
+        tvTotalAmount.setText(formatMoney(totalAmount, totalCurrency));
+    }
+    private double getHeaderDisplayAmount(Transaction transaction) {
+        if (transaction instanceof TransferTransaction) {
+            TransferTransaction transfer = (TransferTransaction) transaction;
+            if (shouldShowOriginalTransferAmountInHeader(transfer)) {
+                return -Math.abs(transfer.getOriginalAmount());
+            }
+        }
+
+        return transaction.getAmount();
     }
 
+    private String getHeaderDisplayCurrency(Transaction transaction) {
+        if (transaction instanceof TransferTransaction) {
+            TransferTransaction transfer = (TransferTransaction) transaction;
+            if (shouldShowOriginalTransferAmountInHeader(transfer)) {
+                return transfer.getOriginalCurrency();
+            }
+        }
+
+        return transaction.getCurrency();
+    }
+
+    private boolean shouldShowOriginalTransferAmountInHeader(TransferTransaction transfer) {
+        if (!transfer.hasCurrencyConversion()
+                || transfer.getOriginalAmount() == null
+                || transfer.getOriginalCurrency() == null) {
+            return false;
+        }
+
+        String type = transfer.getTransactionType();
+        boolean outgoing = "TRANSFER_OUT".equals(type) || "SELF_OUT".equals(type);
+        return outgoing && normalizeCurrency(accountCurrency).equals(normalizeCurrency(transfer.getOriginalCurrency()));
+    }
+
+    private String getTransferOriginalAmountLabel(TransferTransaction transfer) {
+        String type = transfer.getTransactionType();
+        if ("TRANSFER_OUT".equals(type)) return "Ai trimis";
+        if ("TRANSFER_IN".equals(type)) return "Expeditorul a trimis";
+        if ("SELF_OUT".equals(type) || "SELF_IN".equals(type)) return "Din cont";
+        return "Sum\u0103 ini\u021bial\u0103";
+    }
+
+    private String getTransferConvertedAmountLabel(TransferTransaction transfer) {
+        String type = transfer.getTransactionType();
+        if ("TRANSFER_OUT".equals(type)) return "Beneficiarul prime\u0219te";
+        if ("TRANSFER_IN".equals(type)) return "Ai primit";
+        if ("SELF_OUT".equals(type) || "SELF_IN".equals(type)) return "\u00cen cont";
+        return "Sum\u0103 convertit\u0103";
+    }
+
+    private String formatMoney(double amount, String currency) {
+        return formatBalance(amount) + " " + getCurrencySymbol(currency);
+    }
     private void showLoading() {
         loadingState.setVisibility(View.VISIBLE);
         contentContainer.setVisibility(View.GONE);
@@ -626,10 +681,29 @@ public class TransactionDetailsActivity extends AppCompatActivity {
     }
 
     private boolean isExchangeTransfer(TransferTransaction transfer) {
-        String type = transfer.getTransactionType();
-        return ("SELF_IN".equals(type) || "SELF_OUT".equals(type)) && transfer.hasCurrencyConversion();
+        return transfer.hasCurrencyConversion();
     }
 
+    private String formatCardExchangeRate(CardTransaction card) {
+        String fromCurrency = normalizeCurrency(card.getOriginalCurrency());
+        String toCurrency = normalizeCurrency(card.getCurrency());
+        Double rate = card.getExchangeRate();
+
+        if (rate == null || rate <= 0) {
+            Double originalAmount = card.getOriginalAmount();
+            double fromAmount = originalAmount != null ? Math.abs(originalAmount) : 0;
+            double toAmount = Math.abs(card.getAmount());
+            if (fromAmount > 0 && toAmount > 0) {
+                rate = toAmount / fromAmount;
+            }
+        }
+
+        if (rate == null || rate <= 0) {
+            return null;
+        }
+
+        return "1 " + fromCurrency + " = " + formatRate(rate) + " " + toCurrency;
+    }
     private String formatExchangeRate(TransferTransaction transfer) {
         String fromCurrency = getExchangeFromCurrency(transfer);
         String toCurrency = getExchangeToCurrency(transfer);
@@ -651,35 +725,24 @@ public class TransactionDetailsActivity extends AppCompatActivity {
     }
 
     private double getExchangeFromAmount(TransferTransaction transfer) {
-        if ("SELF_OUT".equals(transfer.getTransactionType())) {
-            return Math.abs(transfer.getAmount());
-        }
         Double originalAmount = transfer.getOriginalAmount();
         return originalAmount != null ? Math.abs(originalAmount) : 0;
     }
 
     private double getExchangeToAmount(TransferTransaction transfer) {
-        if ("SELF_OUT".equals(transfer.getTransactionType())) {
-            Double originalAmount = transfer.getOriginalAmount();
-            return originalAmount != null ? Math.abs(originalAmount) : 0;
-        }
         return Math.abs(transfer.getAmount());
     }
 
     private String getExchangeFromCurrency(TransferTransaction transfer) {
-        if ("SELF_OUT".equals(transfer.getTransactionType())) {
-            return normalizeCurrency(transfer.getCurrency());
-        }
         return normalizeCurrency(transfer.getOriginalCurrency());
     }
 
     private String getExchangeToCurrency(TransferTransaction transfer) {
-        if ("SELF_OUT".equals(transfer.getTransactionType())) {
-            return normalizeCurrency(transfer.getOriginalCurrency());
-        }
         return normalizeCurrency(transfer.getCurrency());
     }
-
+    private String formatAccountLabel(String currency) {
+        return "Cont " + normalizeCurrency(currency);
+    }
     private String normalizeCurrency(String currency) {
         if (currency == null || currency.trim().isEmpty()) {
             return accountCurrency != null ? accountCurrency.trim().toUpperCase(Locale.ROOT) : "RON";

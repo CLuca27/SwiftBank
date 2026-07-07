@@ -28,6 +28,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.swiftbank.activities.cards.CardPaymentApprovalActivity;
+import com.example.swiftbank.activities.ai.SwiftAiActivity;
 import com.example.swiftbank.api.dto.response.data.success.transaction.BillTransaction;
 import com.example.swiftbank.api.dto.response.data.success.transaction.CardTransaction;
 import com.example.swiftbank.api.dto.response.data.success.transaction.TransferTransaction;
@@ -392,6 +393,10 @@ public class DashboardActivity extends AppCompatActivity {
 
         btnStats.setOnClickListener(v -> {
             startActivity(new Intent(this, com.example.swiftbank.activities.statistics.StatisticsActivity.class));
+        });
+
+        findViewById(R.id.btnSwiftAi).setOnClickListener(v -> {
+            startActivity(new Intent(this, SwiftAiActivity.class));
         });
 
         profileContent.setOnClickListener(v -> {
@@ -1360,7 +1365,7 @@ public class DashboardActivity extends AppCompatActivity {
             case "entertainment":
                 return "Divertisment";
             case "groceries":
-                return "Supermarket";
+                return "Alimente";
             case "health":
                 return "Sanatate";
             case "utilities":
@@ -1379,6 +1384,10 @@ public class DashboardActivity extends AppCompatActivity {
                 return "Servicii";
             case "subscriptions":
                 return "Abonamente";
+            case "furniture":
+                return "Mobilier";
+            case "electronics":
+                return "Electronice";
             case "other":
                 return "Altele";
             default:

@@ -7,8 +7,11 @@ it is sent to the language model.
 
 SWIFTBANK_KNOWLEDGE = {
     "otp": (
-        "SwiftBank uses OTP codes during registration and account recovery. "
-        "OTP codes are short-lived and should never be shared with anyone."
+        "SwiftBank uses OTP codes only for two flows: creating a new account "
+        "during registration and recovering access when the user forgot their "
+        "PIN/password. OTP is not used for normal login, transfers, bill payments, "
+        "card details, or card management. OTP codes are short-lived and should "
+        "never be shared with anyone."
     ),
     "accounts": (
         "Users can manage current accounts in multiple currencies, view balances, "
@@ -40,9 +43,10 @@ SWIFTBANK_KNOWLEDGE = {
         "financial or investment advice."
     ),
     "security": (
-        "Sensitive actions are protected with PIN, OTP, biometrics, access tokens, "
-        "refresh tokens, and single-device session checks. Users should contact the "
-        "bank if they notice unknown transactions or unexpected account activity."
+        "SwiftBank protects authentication and confirmations with PIN, biometrics, "
+        "access tokens, refresh tokens, and single-device session checks. OTP is "
+        "limited to registration and access recovery. Users should contact the bank "
+        "if they notice unknown transactions or unexpected account activity."
     ),
 }
 

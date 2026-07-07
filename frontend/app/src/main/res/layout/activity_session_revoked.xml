@@ -29,7 +29,7 @@
             android:id="@+id/ivIcon"
             android:layout_width="82dp"
             android:layout_height="82dp"
-            android:contentDescription="Sesiune inchisa"
+            android:contentDescription="Sesiune închisă"
             android:src="@drawable/ic_logout"
             app:tint="@color/white" />
 
@@ -40,7 +40,7 @@
             android:layout_marginTop="32dp"
             android:fontFamily="sans-serif-medium"
             android:gravity="center"
-            android:text="Sesiune inchisa"
+            android:text="Sesiune închisă"
             android:textColor="@color/white"
             android:textSize="28sp" />
 
@@ -51,7 +51,7 @@
             android:layout_marginTop="16dp"
             android:gravity="center"
             android:lineSpacingExtra="4dp"
-            android:text="Te-ai autentificat pe un alt dispozitiv.\n\nPentru siguranta, acest dispozitiv a fost delogat automat."
+            android:text="Te-ai autentificat pe un alt dispozitiv.\n\nPentru siguranță, acest dispozitiv a fost delogat automat."
             android:textColor="@color/white_70"
             android:textSize="16sp" />
 
@@ -75,8 +75,11 @@
             android:background="@drawable/bg_button_primary"
             android:backgroundTint="@null"
             app:backgroundTint="@null"
+            android:elevation="0dp"
             android:fontFamily="sans-serif-medium"
-            android:text="Am inteles"
+            android:minHeight="0dp"
+            android:stateListAnimator="@null"
+            android:text="Am înțeles"
             android:textAllCaps="false"
             android:textColor="@color/green_dark"
             android:textSize="17sp" />

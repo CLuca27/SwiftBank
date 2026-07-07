@@ -15,6 +15,9 @@ public class ValidateIBANData {
     @SerializedName("account_currency")
     private String accountCurrency;
 
+    @SerializedName("profile_photo")
+    private String profilePhoto;
+
     @SerializedName("is_swift_bank")
     private boolean isSwiftBank;
 
@@ -39,6 +42,10 @@ public class ValidateIBANData {
 
     public String getAccountCurrency() {
         return accountCurrency;
+    }
+
+    public String getProfilePhoto() {
+        return profilePhoto;
     }
 
     public boolean isSwiftBank() {

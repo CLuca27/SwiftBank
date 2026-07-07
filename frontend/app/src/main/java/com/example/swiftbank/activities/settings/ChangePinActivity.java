@@ -425,7 +425,7 @@ public class ChangePinActivity extends AppCompatActivity {
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
                 showLoading(false);
                 Log.e(TAG, "Network error: " + t.getMessage());
-                SwiftBankDialog.showNoNetworkDialog(ChangePinActivity.this, v -> onPinConfirmed());
+                SwiftBankDialog.showServerErrorDialog(ChangePinActivity.this, v -> onPinConfirmed());
             }
         });
     }

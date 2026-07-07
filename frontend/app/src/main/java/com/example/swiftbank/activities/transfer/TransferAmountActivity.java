@@ -183,8 +183,24 @@ public class TransferAmountActivity extends AppCompatActivity {
         layoutBeneficiaryInitial.setVisibility(View.VISIBLE);
         cardBeneficiaryPhoto.setVisibility(View.GONE);
         if (beneficiaryName != null && !beneficiaryName.isEmpty()) {
-            tvBeneficiaryInitial.setText(beneficiaryName.substring(0, 1).toUpperCase());
+            tvBeneficiaryInitial.setText(getInitials(beneficiaryName));
         }
+    }
+
+    private String getInitials(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return "?";
+        }
+
+        String[] parts = name.trim().split("\\s+");
+        StringBuilder initials = new StringBuilder();
+        initials.append(parts[0].substring(0, 1).toUpperCase());
+
+        if (parts.length > 1) {
+            initials.append(parts[parts.length - 1].substring(0, 1).toUpperCase());
+        }
+
+        return initials.toString();
     }
 
     private Bitmap decodeBase64Photo(String base64Photo) {

@@ -28,6 +28,7 @@ import com.example.swiftbank.api.dto.response.data.success.TokenData;
 import com.example.swiftbank.api.dto.response.data.error.ErrorParser;
 import com.example.swiftbank.api.dto.RegistrationData;
 import com.example.swiftbank.utils.DeviceDetails;
+import com.example.swiftbank.utils.SwiftBankDialog;
 import com.example.swiftbank.views.ParticlesView;
 
 import retrofit2.Call;
@@ -327,8 +328,8 @@ public class RegisterPinActivity extends AppCompatActivity {
             public void onFailure(Call<ApiResponse<TokenData>> call, Throwable t) {
                 showLoading(false);
                 Log.e(TAG, "Network error: " + t.getMessage());
-                showError("Eroare de conexiune");
                 resetToCreateState();
+                SwiftBankDialog.showServerErrorDialog(RegisterPinActivity.this, v -> onPinConfirmed(pin));
             }
         });
     }

@@ -178,7 +178,7 @@ public class ResetPinOtpActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
                 showLoading(false);
-                SwiftBankDialog.showNoNetworkDialog(ResetPinOtpActivity.this, v -> verifyAndProceed());
+                SwiftBankDialog.showServerErrorDialog(ResetPinOtpActivity.this, v -> verifyAndProceed());
             }
         });
     }
@@ -250,7 +250,7 @@ public class ResetPinOtpActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<ApiResponse<ForgotPinData>> call, Throwable t) {
                 showLoading(false);
-                showError("Eroare de conexiune");
+                SwiftBankDialog.showServerErrorDialog(ResetPinOtpActivity.this, v -> resendOtp());
             }
         });
     }

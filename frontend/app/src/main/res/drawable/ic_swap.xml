@@ -4,20 +4,12 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Săgeată stânga-dreapta sus -->
+
     <path
-        android:strokeColor="#000000"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="#00000000"
-        android:pathData="M4,9h16M17,5l4,4l-4,4" />
-    <!-- Săgeată dreapta-stânga jos -->
+        android:fillColor="#000000"
+        android:pathData="M7,6H18.15L15.95,3.8L17.35,2.4L22,7L17.35,11.6L15.95,10.2L18.15,8H7V6Z" />
+
     <path
-        android:strokeColor="#000000"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="#00000000"
-        android:pathData="M20,15H4M7,11l-4,4l4,4" />
+        android:fillColor="#000000"
+        android:pathData="M17,18H5.85L8.05,20.2L6.65,21.6L2,17L6.65,12.4L8.05,13.8L5.85,16H17V18Z" />
 </vector>

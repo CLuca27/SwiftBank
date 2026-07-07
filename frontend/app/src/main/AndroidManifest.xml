@@ -31,6 +31,10 @@
             android:name=".activities.dashboard.DashboardActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.ai.SwiftAiActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustNothing" />
+        <activity
             android:name=".activities.exchange.ExchangeActivity"
             android:exported="false" />
         <activity
@@ -132,6 +136,9 @@
             android:exported="false" />
         <activity
             android:name=".activities.statistics.StatisticsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.statistics.StatisticsTransactionsActivity"
             android:exported="false" />
         <activity
             android:name=".activities.splash.SplashActivity"

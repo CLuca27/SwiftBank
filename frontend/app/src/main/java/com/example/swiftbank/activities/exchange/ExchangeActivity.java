@@ -38,6 +38,7 @@ import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -72,6 +73,7 @@ public class ExchangeActivity extends AppCompatActivity {
     private boolean isDirectionDown = true; // true = de sus în jos
     private boolean isEditingTop = true; // care câmp e editat acum
     private boolean isUpdatingProgrammatically = false; // previne loop infinit
+    private String idempotencyKey;
 
     private DecimalFormat balanceFormat;
     private DecimalFormat amountFormat;
@@ -601,6 +603,16 @@ public class ExchangeActivity extends AppCompatActivity {
         updateExchangeButton();
     }
 
+    private void ensureIdempotencyKey() {
+        if (idempotencyKey == null || idempotencyKey.isEmpty()) {
+            idempotencyKey = UUID.randomUUID().toString();
+        }
+    }
+
+    private void resetIdempotencyKey() {
+        idempotencyKey = UUID.randomUUID().toString();
+    }
+
     private void swapAccounts() {
         if (fromAccount == null || toAccount == null) return;
 
@@ -733,6 +745,7 @@ public class ExchangeActivity extends AppCompatActivity {
         // Determină contul sursă și destinație bazat pe direcție
         AccountData sourceAccount = isDirectionDown ? fromAccount : toAccount;
         AccountData destAccount = isDirectionDown ? toAccount : fromAccount;
+        ensureIdempotencyKey();
 
         isLoading = true;
         btnExchange.setText("Se procesează...");
@@ -744,13 +757,14 @@ public class ExchangeActivity extends AppCompatActivity {
             sendAmount
         );
 
-        ApiClient.getAccountService().exchange(request).enqueue(new Callback<ApiResponse<ExchangeResultData>>() {
+        ApiClient.getAccountService().exchange(idempotencyKey, request).enqueue(new Callback<ApiResponse<ExchangeResultData>>() {
             @Override
             public void onResponse(Call<ApiResponse<ExchangeResultData>> call, Response<ApiResponse<ExchangeResultData>> response) {
                 isLoading = false;
                 btnExchange.setText("Verifică ordinul");
 
                 if (response.isSuccessful() && response.body() != null) {
+                    resetIdempotencyKey();
                     ExchangeResultData result = response.body().getData();
 
                     String message = String.format("%.2f %s → %.2f %s",
@@ -769,6 +783,7 @@ public class ExchangeActivity extends AppCompatActivity {
                     if (error != null && error.getError() != null) {
                         message = error.getError().getMessage();
                     }
+                    resetIdempotencyKey();
                     SwiftBankDialog.showErrorDialog(ExchangeActivity.this, message);
                     updateExchangeButton();
                 }

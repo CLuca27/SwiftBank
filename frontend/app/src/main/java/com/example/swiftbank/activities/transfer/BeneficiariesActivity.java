@@ -110,8 +110,9 @@ public class BeneficiariesActivity extends AppCompatActivity {
                         String name = result.getData().getStringExtra("name");
                         String bankName = result.getData().getStringExtra("bank_name");
                         int beneficiaryId = result.getData().getIntExtra("beneficiary_id", -1);
+                        String profilePhoto = result.getData().getStringExtra("profile_photo");
 
-                        openTransferScreen(beneficiaryId, iban, name, bankName, null);
+                        openTransferScreen(beneficiaryId, iban, name, bankName, profilePhoto);
                     }
                 }
         );
@@ -386,7 +387,23 @@ public class BeneficiariesActivity extends AppCompatActivity {
             private void showInitial(String name) {
                 tvInitial.setVisibility(View.VISIBLE);
                 cardPhoto.setVisibility(View.GONE);
-                tvInitial.setText(name.substring(0, 1).toUpperCase());
+                tvInitial.setText(getInitials(name));
+            }
+
+            private String getInitials(String name) {
+                if (name == null || name.trim().isEmpty()) {
+                    return "?";
+                }
+
+                String[] parts = name.trim().split("\\s+");
+                StringBuilder initials = new StringBuilder();
+                initials.append(parts[0].substring(0, 1).toUpperCase());
+
+                if (parts.length > 1) {
+                    initials.append(parts[parts.length - 1].substring(0, 1).toUpperCase());
+                }
+
+                return initials.toString();
             }
 
             private Bitmap decodeBase64Photo(String base64Photo) {

@@ -15,4 +15,13 @@ public interface TransactionService {
             @Query("limit") int limit,
             @Query("offset") int offset
     );
+
+    @GET("/api/transactions")
+    Call<ApiResponse<TransactionsData>> getTransactionsFiltered(
+            @Query("account_id") int accountId,
+            @Query("limit") int limit,
+            @Query("offset") int offset,
+            @Query("start_date") String startDate,
+            @Query("end_date") String endDate
+    );
 }

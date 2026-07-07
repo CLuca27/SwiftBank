@@ -382,7 +382,7 @@ public class ResetPinSetActivity extends AppCompatActivity {
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
                 showLoading(false);
                 Log.e(TAG, "Network error: " + t.getMessage());
-                SwiftBankDialog.showNoNetworkDialog(ResetPinSetActivity.this, v -> onPinConfirmed(pin));
+                SwiftBankDialog.showServerErrorDialog(ResetPinSetActivity.this, v -> onPinConfirmed(pin));
             }
         });
     }
