@@ -349,14 +349,18 @@ public class IdentifyActivity extends AppCompatActivity {
 
     private void goToPassword(String phone, String email, IdentifyData data) {
         Intent intent = new Intent(this, LoginPinActivity.class);
-        if (phone != null) {
-            intent.putExtra("phone", phone);
+        String resolvedPhone = data.getPhone() != null ? data.getPhone() : phone;
+        String resolvedEmail = data.getEmail() != null ? data.getEmail() : email;
+
+        if (resolvedPhone != null) {
+            intent.putExtra("phone", resolvedPhone);
         }
-        if (email != null) {
-            intent.putExtra("email", email);
+        if (resolvedEmail != null) {
+            intent.putExtra("email", resolvedEmail);
         }
         intent.putExtra("first_name", data.getFirstName());
         intent.putExtra("locked_until", data.getLockedUntil());
+        intent.putExtra("biometric_enabled", data.isBiometricEnabled());
         startActivity(intent);
         Log.e(TAG, "Going to password...");
     }

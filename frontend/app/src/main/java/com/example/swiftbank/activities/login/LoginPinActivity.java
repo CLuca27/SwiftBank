@@ -91,6 +91,7 @@ public class LoginPinActivity extends AppCompatActivity {
     private BiometricPrompt biometricPrompt;
     private BiometricPrompt.PromptInfo promptInfo;
     private boolean biometricEnabled = false;
+    private boolean backendBiometricEnabled = false;
     private boolean biometricAutoPromptPending = false;
     private boolean biometricAutoPromptShown = false;
     private boolean biometricAutoPromptScheduled = false;
@@ -115,6 +116,14 @@ public class LoginPinActivity extends AppCompatActivity {
         email = getIntent().getStringExtra("email");
         firstName = getIntent().getStringExtra("first_name");
         lockedUntil = getIntent().getStringExtra("locked_until");
+
+        SharedPreferences prefs = getSharedPreferences("SwiftBankSettings", MODE_PRIVATE);
+        if (getIntent().hasExtra("biometric_enabled")) {
+            backendBiometricEnabled = getIntent().getBooleanExtra("biometric_enabled", false);
+            prefs.edit().putBoolean("biometric_enabled", backendBiometricEnabled).apply();
+        } else {
+            backendBiometricEnabled = prefs.getBoolean("biometric_enabled", false);
+        }
     }
 
     private void initViews() {
@@ -337,9 +346,7 @@ public class LoginPinActivity extends AppCompatActivity {
         Log.d(TAG, "Login successful!");
 
         // Salvează credențialele pentru biometric dacă e activat
-        SharedPreferences prefs = getSharedPreferences("SwiftBankSettings", MODE_PRIVATE);
-        boolean biometricSettingEnabled = prefs.getBoolean("biometric_enabled", false);
-        if (biometricSettingEnabled && currentPin.length() == PIN_LENGTH) {
+        if (backendBiometricEnabled && currentPin.length() == PIN_LENGTH) {
             BiometricCredentialsManager.getInstance(this)
                     .saveCredentials(phone, email, currentPin.toString());
             Log.d(TAG, "Credentials saved for biometric");
@@ -525,10 +532,6 @@ public class LoginPinActivity extends AppCompatActivity {
     // ==================== BIOMETRIC ====================
 
     private void checkBiometricAvailability() {
-        // Verifică setarea din SharedPreferences
-        SharedPreferences prefs = getSharedPreferences("SwiftBankSettings", MODE_PRIVATE);
-        boolean biometricSettingEnabled = prefs.getBoolean("biometric_enabled", false);
-
         // Verifică dacă avem credențiale salvate
         BiometricCredentialsManager credentialsManager = BiometricCredentialsManager.getInstance(this);
         boolean hasCredentials = credentialsManager.hasCredentialsFor(phone, email);
@@ -538,7 +541,7 @@ public class LoginPinActivity extends AppCompatActivity {
         int canAuthenticate = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK);
         boolean biometricAvailable = (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS);
 
-        biometricEnabled = biometricSettingEnabled && hasCredentials && biometricAvailable;
+        biometricEnabled = backendBiometricEnabled && hasCredentials && biometricAvailable;
 
         if (biometricEnabled) {
             btnBiometric.setVisibility(View.VISIBLE);
@@ -548,7 +551,7 @@ public class LoginPinActivity extends AppCompatActivity {
             btnBiometric.setVisibility(View.GONE);
         }
 
-        Log.d(TAG, "Biometric - setting: " + biometricSettingEnabled +
+        Log.d(TAG, "Biometric - backend setting: " + backendBiometricEnabled +
                    ", credentials: " + hasCredentials +
                    ", available: " + biometricAvailable +
                    ", enabled: " + biometricEnabled);
@@ -617,10 +620,9 @@ public class LoginPinActivity extends AppCompatActivity {
     private void handleBiometricSuccess() {
         BiometricCredentialsManager credentialsManager = BiometricCredentialsManager.getInstance(this);
         String storedPin = credentialsManager.getPin();
+        fillMissingIdentifierFromBiometricCredentials();
 
         if (storedPin != null && !storedPin.isEmpty() && credentialsManager.hasCredentialsFor(phone, email)) {
-            fillMissingIdentifierFromBiometricCredentials();
-
             // Animează dots ca și cum ar fi fost introduse
             for (int i = 0; i < PIN_LENGTH && i < storedPin.length(); i++) {
                 final int index = i;

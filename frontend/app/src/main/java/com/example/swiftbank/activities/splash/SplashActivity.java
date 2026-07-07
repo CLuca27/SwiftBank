@@ -171,6 +171,7 @@ public class SplashActivity extends AppCompatActivity {
                 intent.putExtra("phone", data.getUser().getPhone());
                 intent.putExtra("first_name", data.getUser().getFirstName());
                 intent.putExtra("locked_until", data.getUser().getLockedUntil());
+                intent.putExtra("biometric_enabled", data.getUser().isBiometricEnabled());
             }
             navigateToLoginPin(intent);
         } else {

@@ -2,6 +2,21 @@ import config from '../../config/index.js'
 import jwt from 'jsonwebtoken' 
 import services from '../../services/index.js';
 
+async function getBiometricEnabled(userId) {
+    const { data, error } = await config.supabase
+        .from('user_preferences')
+        .select('settings')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Eroare la citirea setarilor biometrice:', error);
+        return false;
+    }
+
+    return data?.settings?.security?.biometric_enabled === true;
+}
+
 async function refresh(req, res) {
     try {
         const { refresh_token, device_id } = req.body;
@@ -191,6 +206,8 @@ async function refresh(req, res) {
             .delete()
             .eq('token_id', storedToken.token_id);
         
+        const biometricEnabled = await getBiometricEnabled(user.user_id);
+
         return res.status(200).json({
             success: true,
             data: {
@@ -203,7 +220,8 @@ async function refresh(req, res) {
                     email: user.email,
                     phone: user.phone,
                     status: user.status,
-                    locked_until: user.locked_until
+                    locked_until: user.locked_until,
+                    biometric_enabled: biometricEnabled
                 }
             }
         });

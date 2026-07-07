@@ -25,6 +25,9 @@ public class UserData {
     @SerializedName("locked_until")
     private String lockedUntil;
 
+    @SerializedName("biometric_enabled")
+    private boolean biometricEnabled;
+
     public int getUserId() {
         return userId;
     }
@@ -51,5 +54,9 @@ public class UserData {
 
     public String getLockedUntil() {
         return lockedUntil;
+    }
+
+    public boolean isBiometricEnabled() {
+        return biometricEnabled;
     }
 }

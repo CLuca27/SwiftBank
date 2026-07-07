@@ -422,6 +422,21 @@ async function register(req, res) {
     }
 }
 
+async function getBiometricEnabled(userId) {
+    const { data, error } = await config.supabase
+        .from('user_preferences')
+        .select('settings')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Eroare la citirea setarilor biometrice:', error);
+        return false;
+    }
+
+    return data?.settings?.security?.biometric_enabled === true;
+}
+
 async function identify(req, res) {
     try {
         const { phone, email } = req.body;
@@ -438,7 +453,7 @@ async function identify(req, res) {
         
         let query = config.supabase
             .from('users')
-            .select('user_id, first_name, status, locked_until');
+            .select('user_id, phone, email, first_name, status, locked_until');
         
         if (phone) {
             query = query.eq('phone', phone);
@@ -477,13 +492,17 @@ async function identify(req, res) {
             }
         }
 
-        
+        const biometricEnabled = await getBiometricEnabled(user.user_id);
+
         return res.status(200).json({
             success: true,
             data: {
+                phone: user.phone,
+                email: user.email,
                 first_name: user.first_name,
                 status: user.status,
-                locked_until: user.locked_until
+                locked_until: user.locked_until,
+                biometric_enabled: biometricEnabled
             }
         });
         
